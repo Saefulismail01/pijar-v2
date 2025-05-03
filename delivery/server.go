@@ -5,8 +5,8 @@ import (
 	"os"
 	"pijar/config"
 	"pijar/delivery/controller"
-	"pijar/usecase"
 	"pijar/repository"
+	"pijar/usecase"
 	"pijar/utils/service"
 
 	"github.com/gin-gonic/gin"
@@ -40,7 +40,16 @@ func NewServer() *Server {
 
 	//ini fitur ai-couch
 	sessionRepo := repository.NewSession(db)
-	deepseek := service.NewDeepSeekClient(os.Getenv("AI_API"))
+	// Inisialisasi DeepSeekClient dengan personalisasi
+	deepseek := service.NewDeepSeekClient(os.Getenv("AI_API")).
+		WithSystemPrompt(`Kamu adalah AI coach profesional dan sahabat yang membantu generasi muda dan akademisi dalam pengembangan karir dan skill. 
+		Berikan saran yang spesifik, praktis, dan dapat ditindaklanjuti. 
+		Gunakan bahasa yang ramah, penuh empati, dan mudah dipahami. 
+		Selalu berikan contoh konkret dan relevan dengan konteks pengguna. 
+		Jika dia bertanya terkait opsi maka jawaban anda dengan framewrok Cost Benefit Analysis secara mendalam.`).
+		WithTemperature(0.7).
+		WithMaxTokens(2000)
+
 	coachUsecase := usecase.NewSessionUsecase(sessionRepo, deepseek)
 
 	engine := gin.Default()

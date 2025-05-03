@@ -8,17 +8,39 @@ import (
 )
 
 type DeepSeekClient struct {
-	APIKey string
+	APIKey       string
+	SystemPrompt string
+	Temperature  float64
+	MaxTokens    int
 }
 
 func (d *DeepSeekClient) GetAIResponse(userInput string) (string, error) {
 	url := "https://api.deepseek.com/v1/chat/completions"
-	payload := map[string]interface{}{
-		"model": "deepseek-chat",
-		"messages": []map[string]string{
-			{"role": "user", "content": userInput},
-		},
+	
+	messages := []map[string]string{}
+	
+	if d.SystemPrompt != "" {
+		messages = append(messages, map[string]string{
+			"role":    "system",
+			"content": d.SystemPrompt,
+		})
 	}
+	
+	messages = append(messages, map[string]string{
+		"role":    "user",
+		"content": userInput,
+	})
+	
+	payload := map[string]interface{}{
+		"model":       "deepseek-chat",
+		"messages":    messages,
+		"temperature": d.Temperature,
+	}
+	
+	if d.MaxTokens > 0 {
+		payload["max_tokens"] = d.MaxTokens
+	}
+	
 	body, _ := json.Marshal(payload)
 
 	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(body))
@@ -47,6 +69,27 @@ func (d *DeepSeekClient) GetAIResponse(userInput string) (string, error) {
 	return "", nil
 }
 
+func (d *DeepSeekClient) WithSystemPrompt(prompt string) *DeepSeekClient {
+	d.SystemPrompt = prompt
+	return d
+}
+
+func (d *DeepSeekClient) WithTemperature(temp float64) *DeepSeekClient {
+	d.Temperature = temp
+	return d
+}
+
+func (d *DeepSeekClient) WithMaxTokens(tokens int) *DeepSeekClient {
+	d.MaxTokens = tokens
+	return d
+}
+
+
 func NewDeepSeekClient(apiKey string) *DeepSeekClient {
-	return &DeepSeekClient{APIKey: apiKey}
+	return &DeepSeekClient{
+		APIKey:       apiKey,
+		SystemPrompt: "",
+		Temperature:  0.7,
+		MaxTokens:    1000,
+	}
 }

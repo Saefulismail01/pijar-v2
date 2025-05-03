@@ -12,7 +12,7 @@ type SessionUsecase interface {
 }
 
 type sessionUsecase struct {
-	repo repository.CouchRepository
+	repo repository.CoachRepository
 	ai   *service.DeepSeekClient
 }
 
@@ -40,6 +40,6 @@ func (u *sessionUsecase) GetSessionByUserID(userID int) ([]model.CoachSession, e
 	return u.repo.GetSessionByUserID(userID)
 }
 
-func NewSessionUsecase(repo repository.CouchRepository, aiClient *service.DeepSeekClient) SessionUsecase {
+func NewSessionUsecase(repo repository.CoachRepository, aiClient *service.DeepSeekClient) SessionUsecase {
 	return &sessionUsecase{repo: repo, ai: aiClient}
 }

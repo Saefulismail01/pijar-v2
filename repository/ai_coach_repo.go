@@ -7,17 +7,17 @@ import (
 	"pijar/model"
 )
 
-type CouchRepository interface {
+type CoachRepository interface {
 	CreateSession(userID int, input string) (int, error)
 	UpdateSessionResponse(sessionID int, response string) error
 	GetSessionByUserID(userID int) ([]model.CoachSession, error)
 }
 
-type couchRepository struct {
+type coachRepository struct {
 	db *sql.DB
 }
 
-func (r *couchRepository) CreateSession(userID int, input string) (int, error) {
+func (r *coachRepository) CreateSession(userID int, input string) (int, error) {
 	// Cek apakah user ada
 	var exists bool
 	checkUserQuery := `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)`
@@ -37,13 +37,13 @@ func (r *couchRepository) CreateSession(userID int, input string) (int, error) {
 	return id, err
 }
 
-func (r *couchRepository) UpdateSessionResponse(sessionID int, response string) error {
+func (r *coachRepository) UpdateSessionResponse(sessionID int, response string) error {
 	query := `UPDATE coach_sessions SET ai_response=$1 WHERE id=$2`
 	_, err := r.db.Exec(query, response, sessionID)
 	return err
 }
 
-func (r *couchRepository) GetSessionByUserID(userID int) ([]model.CoachSession, error) {
+func (r *coachRepository) GetSessionByUserID(userID int) ([]model.CoachSession, error) {
 	var sessions []model.CoachSession
 
 	// Cek apakah user ada
@@ -84,6 +84,6 @@ func (r *couchRepository) GetSessionByUserID(userID int) ([]model.CoachSession, 
 }
 
 
-func NewSession(db *sql.DB) CouchRepository {
-	return &couchRepository{db: db}
+func NewSession(db *sql.DB) CoachRepository {
+	return &coachRepository{db: db}
 }
