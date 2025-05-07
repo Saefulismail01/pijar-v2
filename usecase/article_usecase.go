@@ -6,7 +6,7 @@ import (
 	"pijar/model"
 	"pijar/model/dto"
 	"pijar/repository"
-	"pijar/utils"
+	"pijar/utils/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,7 +16,8 @@ type ArticleUsecase interface {
 	GenerateArticle(ctx context.Context, topicID int) ([]model.Article, error)
 	GetAllArticles(ctx context.Context) ([]model.Article, error)
 	GetArticleByID(ctx context.Context, id int) (*model.Article, error)
-	GetArticleByTitle(ctx context.Context, title string) (*model.Article, error)
+	// GetArticleByTitle(ctx context.Context, title string) (*model.Article, error)
+	SearchArticlesByTitle(ctx context.Context, title string) ([]model.Article, error)
 	UpdateArticle(ctx context.Context, articleDto *dto.ArticleDto, id int) error
 	DeleteArticle(ctx context.Context, id int) error
 }
@@ -34,7 +35,7 @@ func NewArticleUsecase(articleRepo repository.ArticleRepository) ArticleUsecase 
 // CreateArticle menangani generate dan create multiple articles dari preferences
 func (u *articleUsecase) CreateArticle(c *gin.Context, preferences []string) error {
 	// Generate articles menggunakan Deepseek
-	generatedArticles, err := utils.GenerateArticles(c, preferences)
+	generatedArticles, err := service.GenerateArticles(c, preferences)
 	if err != nil {
 		return fmt.Errorf("failed to generate articles: %w", err)
 	}
@@ -70,19 +71,79 @@ func (u *articleUsecase) CreateArticle(c *gin.Context, preferences []string) err
 	return nil
 }
 
-// GenerateArticle menangani generate dan create single article dari topicID
+// GenerateArticle handles the generation and creation of articles based on a topic ID
 func (u *articleUsecase) GenerateArticle(ctx context.Context, topicID int) ([]model.Article, error) {
+	// Log the article generation request
+	fmt.Printf("Article generation requested for topic ID: %d\n", topicID)
+
+	// Get the gin context if available
+	ginCtx, isGinCtx := ctx.(*gin.Context)
+
+	// First, check if the topic exists using the repository in context
+	var topicExists bool
+	var topicPreference string
+
+	// Try to get topicRepo from context if available
+	topicRepo, ok := ctx.Value("topicRepo").(repository.TopicUserRepository)
+	if ok {
+		// Get topic by ID to validate it exists
+		topics, err := topicRepo.GetTopicByID(ctx, topicID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get topic: %w", err)
+		}
+		
+		if len(topics) > 0 {
+			topicExists = true
+			topicPreference = topics[0].Preference
+			
+			// If we have a gin context, set the user ID
+			if isGinCtx {
+				ginCtx.Set("user_id", topics[0].UserID)
+			}
+		}
+	}
+
+	// If we couldn't verify the topic through the context, we'll rely on the repository check
+	if !topicExists {
+		// We'll let the repository handle the topic existence check
+		// Start transaction
+		tx, err := u.articleRepo.BeginTx(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to begin transaction: %w", err)
+		}
+		defer u.articleRepo.RollbackTx(tx)
+
+		// Generate articles - the repository will check if the topic exists
+		articles, err := u.articleRepo.GenerateArticle(ctx, tx, topicID)
+		if err != nil {
+			return nil, err
+		}
+
+		// Commit the transaction
+		if err := u.articleRepo.CommitTx(tx); err != nil {
+			return nil, fmt.Errorf("failed to commit transaction: %w", err)
+		}
+
+		return articles, nil
+	}
+	
+	// If we get here, we've confirmed the topic exists and have its preference
+	fmt.Printf("Topic found with preference: %s\n", topicPreference)
+	
+	// Start transaction
 	tx, err := u.articleRepo.BeginTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer u.articleRepo.RollbackTx(tx)
 
+	// Generate articles using the topic's preference
 	articles, err := u.articleRepo.GenerateArticle(ctx, tx, topicID)
 	if err != nil {
 		return nil, err
 	}
 
+	// Commit the transaction
 	if err := u.articleRepo.CommitTx(tx); err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
@@ -106,12 +167,20 @@ func (u *articleUsecase) GetArticleByID(ctx context.Context, id int) (*model.Art
 	return article, nil
 }
 
-func (u *articleUsecase) GetArticleByTitle(ctx context.Context, title string) (*model.Article, error) {
+// func (u *articleUsecase) GetArticleByTitle(ctx context.Context, title string) (*model.Article, error) {
+// 	return u.articleRepo.GetArticleByTitle(ctx, title)
+// }
+
+// SearchArticlesByTitle finds articles with titles similar to the given title
+func (u *articleUsecase) SearchArticlesByTitle(ctx context.Context, title string) ([]model.Article, error) {
+	// First try to get exact match (case insensitive)
 	article, err := u.articleRepo.GetArticleByTitle(ctx, title)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get article by title: %w", err)
+	if err == nil && article != nil {
+		return []model.Article{*article}, nil
 	}
-	return article, nil
+
+	// If no exact match, search for similar titles
+	return u.articleRepo.SearchArticlesByTitle(ctx, title)
 }
 
 func (u *articleUsecase) UpdateArticle(ctx context.Context, articleDto *dto.ArticleDto, id int) error {
