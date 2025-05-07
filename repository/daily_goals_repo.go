@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"pijar/model"
+	"slices"
 	"time"
 
 	"github.com/lib/pq"
@@ -19,6 +20,7 @@ type DailyGoalRepository interface {
 	UpdateGoal(ctx context.Context, goal *model.UserGoal, articlesToRead []int64, userID int) (model.UserGoal, error)
 	CompleteArticleProgress(ctx context.Context, goalID int, articleID int64, completed bool) error
 	CountCompletedProgress(ctx context.Context, goalID int, userID int) (int, error)
+	DeleteGoal(ctx context.Context, goalID int, userID int) error
 }
 
 type dailyGoalsRepository struct {
@@ -104,7 +106,7 @@ func (r *dailyGoalsRepository) CompleteArticleProgress(ctx context.Context, goal
 		return fmt.Errorf("failed to begin transaction: %v", err)
 	}
 
-	// 1. Dapatkan data goal untuk memverifikasi artikel
+	// Dapatkan data goal untuk memverifikasi artikel
 	var articles []int64
 	err = tx.QueryRowContext(
 		ctx,
@@ -120,21 +122,15 @@ func (r *dailyGoalsRepository) CompleteArticleProgress(ctx context.Context, goal
 		return fmt.Errorf("failed to get goal: %v", err)
 	}
 
-	// 2. Verifikasi artikel termasuk dalam goal
-	found := false
-	for _, id := range articles {
-		if id == articleID {
-			found = true
-			break
-		}
-	}
+	// Verifikasi artikel termasuk dalam goal
+	found := slices.Contains(articles, articleID)
 
 	if !found {
 		tx.Rollback()
 		return fmt.Errorf("article %d not found in goal %d", articleID, goalID)
 	}
 
-	// 3. Update progress artikel
+	// Update progress artikel
 	query := `
         INSERT INTO user_goals_progress (id_goals, id_article, completed, date_completed)
         VALUES ($1, $2, $3, $4)
@@ -156,7 +152,7 @@ func (r *dailyGoalsRepository) CompleteArticleProgress(ctx context.Context, goal
 		return fmt.Errorf("failed to update article progress: %v", err)
 	}
 
-	// 4. Hitung progress
+	// Hitung progress
 	var completedCount int
 	err = tx.QueryRowContext(
 		ctx,
@@ -170,7 +166,7 @@ func (r *dailyGoalsRepository) CompleteArticleProgress(ctx context.Context, goal
 		return fmt.Errorf("failed to count completed articles: %v", err)
 	}
 
-	// 5. Update status completed di user_goals
+	// Update status completed di user_goals
 	_, err = tx.ExecContext(
 		ctx,
 		`UPDATE user_goals 
@@ -185,7 +181,7 @@ func (r *dailyGoalsRepository) CompleteArticleProgress(ctx context.Context, goal
 		return fmt.Errorf("failed to update goal status: %v", err)
 	}
 
-	// 6. Commit transaction
+	// Commit transaction
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
@@ -354,6 +350,50 @@ func (r *dailyGoalsRepository) UpdateGoal(
 	return *goal, nil
 }
 
+
+func (r *dailyGoalsRepository) DeleteGoal(ctx context.Context, goalID int, userID int) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %v", err)
+	}
+
+	// Delete progress (child table)
+	deleteProgressQuery := `
+        DELETE FROM user_goals_progress 
+        WHERE id_goals = $1
+    `
+	_, err = tx.ExecContext(ctx, deleteProgressQuery, goalID)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete progress: %v", err)
+	}
+
+	// Delete goal (parent table)
+	deleteGoalQuery := `
+        DELETE FROM user_goals 
+        WHERE id = $1 AND user_id = $2
+    `
+	result, err := tx.ExecContext(ctx, deleteGoalQuery, goalID, userID)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete goal: %v", err)
+	}
+
+	// Check if any row was affected
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		tx.Rollback()
+		return fmt.Errorf("goal not found or access denied")
+	}
+
+	// Commit transaction
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	return nil
+}
+
 // Helper function untuk konversi pq.Int64Array ke []int
 func (r *dailyGoalsRepository) GetGoalProgress(ctx context.Context, goalID int, userID int) ([]model.ArticleProgress, error) {
 	query := `
@@ -402,10 +442,3 @@ func (r *dailyGoalsRepository) GetGoalProgress(ctx context.Context, goalID int, 
 	return progress, nil
 }
 
-func convertToIntSlice(arr pq.Int64Array) []int {
-	result := make([]int, len(arr))
-	for i, v := range arr {
-		result[i] = int(v) // Konversi int64 -> int
-	}
-	return result
-}

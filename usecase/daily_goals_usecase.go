@@ -13,7 +13,13 @@ type GoalProgressInfo struct {
 }
 
 type DailyGoalUseCase interface {
-	CreateGoal(ctx context.Context, userID int, title string, task string, articlesToRead []int64) (model.UserGoal, error)
+	CreateGoal(
+		ctx context.Context,
+		userID int,
+		title string,
+		task string,
+		articlesToRead []int64,
+	) (model.UserGoal, error)
 	GetUserGoals(ctx context.Context, userID int) ([]model.UserGoal, error)
 	GetGoalByID(ctx context.Context, userID int, goalID int) (model.UserGoal, error)
 	UpdateGoal(
@@ -25,7 +31,13 @@ type DailyGoalUseCase interface {
 		completed bool,
 		articlesToRead []int64,
 	) (GoalProgressInfo, error)
-	CompleteArticleProgress(ctx context.Context, goalID int, articleID int, userID int) (GoalProgressInfo, error)
+	CompleteArticleProgress(
+		ctx context.Context,
+		goalID int,
+		articleID int,
+		userID int,
+	) (GoalProgressInfo, error)
+	DeleteGoal(ctx context.Context, userID int, goalID int) error
 }
 
 type dailyGoalUseCase struct {
@@ -95,8 +107,6 @@ func (uc *dailyGoalUseCase) CompleteArticleProgress(ctx context.Context, goalID 
 		Progress: progress,
 	}, nil
 }
-
-
 
 func (uc *dailyGoalUseCase) GetUserGoals(ctx context.Context, userID int) ([]model.UserGoal, error) {
 	goals, err := uc.repo.GetGoalsByUserID(ctx, userID)
@@ -187,4 +197,18 @@ func (uc *dailyGoalUseCase) UpdateGoal(
 		Goal:     result,
 		Progress: progress,
 	}, nil
+}
+
+func (uc *dailyGoalUseCase) DeleteGoal(ctx context.Context, userID int, goalID int) error {
+	// Validate input
+	if userID <= 0 || goalID <= 0 {
+		return fmt.Errorf("invalid userID or goalID")
+	}
+
+	err := uc.repo.DeleteGoal(ctx, goalID, userID)
+	if err != nil {
+		return fmt.Errorf("usecase error: %v", err)
+	}
+
+	return nil
 }
