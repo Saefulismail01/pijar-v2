@@ -1,14 +1,12 @@
 package controller
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
-
-	"pijar/usecase"
 
 	"github.com/gin-gonic/gin"
+	"pijar/model"
+	"pijar/usecase"
 )
 
 type SessionHandler struct {
@@ -20,79 +18,149 @@ type CoachRequest struct {
 	UserInput string `json:"user_input"`
 }
 
-type CoachResponse struct {
-	AIResponse string `json:"ai_response"`
+type StartSessionResponse struct {
+	SessionID string `json:"session_id"`
+	Response  string `json:"response"`
 }
 
-func (h *SessionHandler) HandleChat(c *gin.Context) {
+type ContinueSessionRequest struct {
+	UserInput string `json:"user_input"`
+}
+
+type SessionHistoryResponse struct {
+	SessionID string          `json:"session_id"`
+	Messages  []model.Message `json:"messages"`
+}
+
+// HandleStartSession menangani permintaan untuk memulai sesi baru
+func (h *SessionHandler) HandleStartSession(c *gin.Context) {
 	var req CoachRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	userID, err := strconv.Atoi(c.GetHeader("user_id"))
+	userID, err := strconv.Atoi(c.Param("user_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ser id tidak valid"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
 		return
 	}
 
-	response, err := h.usecase.StartSession(c.Request.Context(), userID, req.UserInput)
+	sessionID, response, err := h.usecase.StartSession(userID, req.UserInput)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, CoachResponse{AIResponse: response})
+	c.JSON(http.StatusOK, StartSessionResponse{
+		SessionID: sessionID,
+		Response:  response,
+	})
 }
 
-func (h *SessionHandler) GetSessionByUserID(c *gin.Context) {
-	userID, err := strconv.Atoi(c.GetHeader("user_id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "user id tidak valid"})
+// HandleContinueSession menangani permintaan untuk melanjutkan sesi yang ada
+func (h *SessionHandler) HandleContinueSession(c *gin.Context) {
+	sessionID := c.Param("sessionId")
+	if sessionID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
 		return
 	}
 
-	response, err := h.usecase.GetSessionByUserID(c.Request.Context(), userID)
+	var req ContinueSessionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID, err := strconv.Atoi(c.Param("user_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	response, err := h.usecase.ContinueSession(userID, sessionID, req.UserInput)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, StartSessionResponse{
+		SessionID: sessionID,
+		Response:  response,
+	})
 }
 
-func (h *SessionHandler) DeleteSessionByUserID(c *gin.Context) {
-	userID, err := strconv.Atoi(c.GetHeader("user_id"))
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"err": "Nomor id tidak valid"})
+// HandleGetSessionHistory mengambil riwayat percakapan
+func (h *SessionHandler) HandleGetSessionHistory(c *gin.Context) {
+	sessionID := c.Param("sessionId")
+	if sessionID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
 		return
 	}
 
-	err = h.usecase.DeleteSessionByUserID(c.Request.Context(), userID)
+	userID, err := strconv.Atoi(c.Param("user_id"))
 	if err != nil {
-		if strings.Contains(err.Error(), "tidak ditemukan") {
-			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"err": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	// Default limit 20 pesan
+	limit := 20
+	if limitStr := c.Query("limit"); limitStr != "" {
+		limit, err = strconv.Atoi(limitStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid limit parameter"})
 			return
 		}
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"err": err.Error()})
+	}
+
+	history, err := h.usecase.GetSessionHistory(userID, sessionID, limit)
+	if err != nil {
+		if err.Error() == "sesi tidak ditemukan atau tidak dapat diakses" {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
-	
-	c.JSON(http.StatusOK, gin.H{
-		"message": fmt.Sprintf("Session untuk user ID %d berhasil dihapus", userID),
+
+	c.JSON(http.StatusOK, SessionHistoryResponse{
+		SessionID: sessionID,
+		Messages:  history,
 	})
-	
 }
 
+// HandleGetUserSessions mengambil daftar sesi pengguna
+func (h *SessionHandler) HandleGetUserSessions(c *gin.Context) {
+	userID, err := strconv.Atoi(c.Param("user_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	sessions, err := h.usecase.GetUserSessions(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"sessions": sessions,
+	})
+}
+
+// Route mendefinisikan rute-rute API
 func (h *SessionHandler) Route() {
-	h.rg.POST("/coach", h.HandleChat)
-	h.rg.GET("/coach", h.GetSessionByUserID)
-	h.rg.DELETE("/coach", h.DeleteSessionByUserID)
+	h.rg.POST("/sessions/start/:user_id", h.HandleStartSession)
+	h.rg.POST("/sessions/continue/:sessionId/:user_id", h.HandleContinueSession)
+	h.rg.GET("/sessions/history/:sessionId/:user_id", h.HandleGetSessionHistory)
+	h.rg.GET("/sessions/user/:user_id", h.HandleGetUserSessions)
 }
 
 func NewSessionHandler(uc usecase.SessionUsecase, rg *gin.RouterGroup) *SessionHandler {
 	return &SessionHandler{
 		usecase: uc,
-		rg:      *rg}
+		rg:      *rg,
+	}
 }
+

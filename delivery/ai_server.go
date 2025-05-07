@@ -13,14 +13,16 @@ import (
 )
 
 type Server struct {
-	coachUC usecase.SessionUsecase
-	engine  *gin.Engine
-	host    string
+	coachUC   usecase.SessionUsecase
+	journalUC usecase.JournalUsecase
+	engine    *gin.Engine
+	host      string
 }
 
 func (s *Server) initRoute() {
 	rg := s.engine.Group("/pijar")
 	controller.NewSessionHandler(s.coachUC, rg).Route()
+	controller.NewJournalController(s.journalUC, rg).Route()
 }
 
 func (s *Server) Run() {
@@ -40,24 +42,25 @@ func NewServer() *Server {
 
 	//ini fitur ai-couch
 	sessionRepo := repository.NewSession(db)
-	// Inisialisasi DeepSeekClient dengan personalisasi
-	deepseek := service.NewDeepSeekClient(os.Getenv("AI_API")).
-		WithSystemPrompt(`Kamu adalah AI coach profesional dan sahabat yang membantu generasi muda dan akademisi dalam pengembangan karir dan skill. 
-		Berikan saran yang spesifik, praktis, dan dapat ditindaklanjuti. 
-		Gunakan bahasa yang ramah, penuh empati, dan mudah dipahami. 
-		Selalu berikan contoh konkret dan relevan dengan konteks pengguna dan jawab secara empati penuh. 
-		Jika dia bertanya terkait opsi maka jawaban anda dengan framewrok Cost Benefit Analysis secara mendalam.`).
-		WithTemperature(0.7).
-		WithMaxTokens(2000)
+	deepseek := service.NewDeepSeekClient(os.Getenv("AI_API"))
+	deepseek.SystemPrompt = "You are a professional mental health coach. Your role is to provide empathetic support and guidance. When users need help with decision-making, use the cost-benefit analysis framework to help them think through their options. Maintain a cheerful and supportive tone, but use emoticons sparingly. Keep your responses concise and focused. Avoid repeating yourself. Your goal is to help users gain clarity and make informed decisions about their mental well-being."
+
+	deepseek.Temperature = 0.7
+	deepseek.MaxTokens = 500
 
 	coachUsecase := usecase.NewSessionUsecase(sessionRepo, deepseek)
+
+	// Initialize journal repository and usecase
+	journalRepo := repository.NewJournalRepository(db)
+	journalUsecase := usecase.NewJournalUsecase(journalRepo)
 
 	engine := gin.Default()
 	host := fmt.Sprintf(":%s", cfg.ApiPort)
 
 	return &Server{
-		coachUC: coachUsecase,
-		engine:  engine,
-		host:    host,
+		coachUC:   coachUsecase,
+		journalUC: journalUsecase,
+		engine:    engine,
+		host:      host,
 	}
 }

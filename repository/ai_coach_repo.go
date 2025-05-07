@@ -1,68 +1,235 @@
 package repository
 
 import (
-	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
-	"pijar/model"
 	"time"
+	"pijar/model"
+	"github.com/google/uuid"
 )
 
-type CoachRepository interface {
-	CreateSession(ctx context.Context, userID int, input string) (int, error)
-	UpdateSessionResponse(ctx context.Context, sessionID int, response string) error
-	GetSessionByUserID(ctx context.Context, userID int) ([]model.CoachSession, error)
-	DeleteSessionByUserID(ctx context.Context, id int) error
+type CouchRepository interface {
+	// Session Management
+	CreateSession(userID int, input string) (string, error)
+	UpdateSessionResponse(sessionID string, response string) error
+	GetOrCreateConversationContext(userID int, sessionID string) (*model.ConversationContext, error)
+	SaveConversationContext(ctx *model.ConversationContext) error
+	SaveConversation(userID int, sessionID, userInput, aiResponse string) error
+	GetSessionHistory(userID int, sessionID string, limit int) ([]model.Message, error)
+	GetUserSessions(userID int) ([]model.CoachSession, error)
 }
 
-type coachRepository struct {
+type couchRepository struct {
 	db *sql.DB
 }
 
-func (r *coachRepository) CreateSession(ctx context.Context, userID int, input string) (int, error) {
+func (r *couchRepository) CreateSession(userID int, input string) (string, error) {
 	// Cek apakah user ada
 	var exists bool
 	checkUserQuery := `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)`
-	err := r.db.QueryRowContext(ctx, checkUserQuery, userID).Scan(&exists)
+	err := r.db.QueryRow(checkUserQuery, userID).Scan(&exists)
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 
 	if !exists {
-		return 0, fmt.Errorf("user dengan id %d tidak ditemukan", userID)
+		return "", fmt.Errorf("user dengan id %d tidak ditemukan", userID)
 	}
 
-	//input session ke database
-	var id int
-	query := `INSERT INTO coach_sessions (id_user, timestamp, user_input) VALUES ($1, $2, $3) RETURNING id`
-	err = r.db.QueryRowContext(ctx, query, userID, time.Now(), input).Scan(&id)
-	return id, err
+	// Generate session ID baru
+	sessionID := uuid.New().String()
+	now := time.Now()
+
+	// Input session ke database
+	query := `INSERT INTO coach_sessions 
+		  (user_id, session_id, timestamp, user_input) 
+		  VALUES ($1, $2, $3, $4) 
+		  RETURNING session_id`
+	
+	_, err = r.db.Exec(query, userID, sessionID, now, input)
+	if err != nil {
+		return "", fmt.Errorf("gagal membuat sesi: %w", err)
+	}
+
+	return sessionID, nil
 }
 
-func (r *coachRepository) UpdateSessionResponse(ctx context.Context, sessionID int, response string) error {
-	query := `UPDATE coach_sessions SET ai_response=$1 WHERE id=$2`
-	_, err := r.db.ExecContext(ctx, query, response, sessionID)
+func (r *couchRepository) UpdateSessionResponse(sessionID string, response string) error {
+	query := `UPDATE coach_sessions 
+	         SET ai_response = $1, updated_at = $2 
+	         WHERE session_id = $3`
+	_, err := r.db.Exec(query, response, time.Now(), sessionID)
 	return err
 }
 
-func (r *coachRepository) GetSessionByUserID(ctx context.Context, userID int) ([]model.CoachSession, error) {
+func (r *couchRepository) GetOrCreateConversationContext(userID int, sessionID string) (*model.ConversationContext, error) {
+	// Cek apakah session ada
+	var exists bool
+	checkSessionQuery := `SELECT EXISTS(SELECT 1 FROM coach_sessions WHERE session_id = $1 AND user_id = $2)`
+	err := r.db.QueryRow(checkSessionQuery, sessionID, userID).Scan(&exists)
+	if err != nil {
+		return nil, fmt.Errorf("gagal memeriksa sesi: %w", err)
+	}
+
+	if !exists {
+		return nil, fmt.Errorf("sesi tidak ditemukan")
+	}
+
+	// Ambil konteks dari database
+	var contextJSON []byte
+	query := `SELECT context FROM conversation_contexts WHERE session_id = $1`
+	err = r.db.QueryRow(query, sessionID).Scan(&contextJSON)
+
+	if err == sql.ErrNoRows {
+		// Buat konteks baru jika belum ada
+		ctx := &model.ConversationContext{
+			SessionID: sessionID,
+			Messages:  []model.Message{},
+			Metadata:  make(map[string]interface{}),
+		}
+		return ctx, nil
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("gagal mengambil konteks: %w", err)
+	}
+
+	// Parse konteks yang ada
+	var ctx model.ConversationContext
+	if err := json.Unmarshal(contextJSON, &ctx); err != nil {
+		return nil, fmt.Errorf("gagal mem-parse konteks: %w", err)
+	}
+
+	return &ctx, nil
+}
+
+func (r *couchRepository) SaveConversation(userID int, sessionID, userInput, aiResponse string) error {
+	// Cek apakah sesi sudah ada
+	var exists bool
+	err := r.db.QueryRow(
+		"SELECT EXISTS(SELECT 1 FROM coach_sessions WHERE session_id = $1 AND user_id = $2)",
+		sessionID, userID,
+	).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("gagal memeriksa sesi: %w", err)
+	}
+
+	if exists {
+		// Update sesi yang sudah ada
+		query := `
+			UPDATE coach_sessions 
+			SET user_input = $1, 
+				ai_response = $2, 
+				timestamp = $3,
+				updated_at = $3
+			WHERE session_id = $4 AND user_id = $5`
+
+		_, err = r.db.Exec(query, userInput, aiResponse, time.Now(), sessionID, userID)
+	} else {
+		// Buat sesi baru
+		query := `
+			INSERT INTO coach_sessions 
+			(user_id, session_id, user_input, ai_response, timestamp, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $6)`
+
+		now := time.Now()
+		_, err = r.db.Exec(query, userID, sessionID, userInput, aiResponse, now, now)
+	}
+
+	if err != nil {
+		return fmt.Errorf("gagal menyimpan percakapan: %w", err)
+	}
+
+	return nil
+}
+
+func (r *couchRepository) SaveConversationContext(ctx *model.ConversationContext) error {
+	// Konversi konteks ke JSON
+	contextJSON, err := json.Marshal(ctx)
+	if err != nil {
+		return fmt.Errorf("gagal mengkonversi konteks: %w", err)
+	}
+
+	// Simpan atau update konteks
+	query := `
+		INSERT INTO conversation_contexts (session_id, context, updated_at)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (session_id) 
+		DO UPDATE SET context = $2, updated_at = $3`
+
+	_, err = r.db.Exec(query, ctx.SessionID, contextJSON, time.Now())
+	if err != nil {
+		return fmt.Errorf("gagal menyimpan konteks: %w", err)
+	}
+
+	return nil
+}
+
+
+func (r *couchRepository) GetSessionHistory(userID int, sessionID string, limit int) ([]model.Message, error) {
+	// Cek apakah session ada dan milik user yang benar
+	var exists bool
+	err := r.db.QueryRow(
+		"SELECT EXISTS(SELECT 1 FROM coach_sessions WHERE session_id = $1 AND user_id = $2)",
+		sessionID, userID,
+	).Scan(&exists)
+
+	if err != nil {
+		return nil, fmt.Errorf("gagal memeriksa sesi: %w", err)
+	}
+
+	if !exists {
+		return nil, fmt.Errorf("sesi tidak ditemukan atau tidak dapat diakses")
+	}
+
+	// Ambil konteks percakapan
+	var contextJSON []byte
+	err = r.db.QueryRow(
+		"SELECT context FROM conversation_contexts WHERE session_id = $1",
+		sessionID,
+	).Scan(&contextJSON)
+
+	if err == sql.ErrNoRows {
+		return []model.Message{}, nil // Return empty array if no conversation context exists yet
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("gagal mengambil konteks percakapan: %w", err)
+	}
+
+	// Parse konteks yang ada
+	var ctx model.ConversationContext
+	if err := json.Unmarshal(contextJSON, &ctx); err != nil {
+		return nil, fmt.Errorf("gagal mem-parse konteks: %w", err)
+	}
+
+	// Jika ada limit, potong array messages sesuai limit
+	if limit > 0 && len(ctx.Messages) > limit {
+		return ctx.Messages[len(ctx.Messages)-limit:], nil
+	}
+
+	return ctx.Messages, nil
+}
+
+func (r *couchRepository) GetUserSessions(userID int) ([]model.CoachSession, error) {
 	var sessions []model.CoachSession
 
 	// Cek apakah user ada
 	var exists bool
-	checkUserQuery := `SELECT EXISTS(SELECT 1 FROM coach_sessions WHERE id_user = $1)`
-	err := r.db.QueryRowContext(ctx, checkUserQuery, userID).Scan(&exists)
+	checkUserQuery := `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)`
+	err := r.db.QueryRow(checkUserQuery, userID).Scan(&exists)
 	if err != nil {
 		return nil, err
 	}
 
 	if !exists {
-		return nil, fmt.Errorf("user dengan id %d belum melakukan percakapan", userID)
+		return nil, fmt.Errorf("user dengan id %d tidak ditemukan", userID)
 	}
 
 	// Query untuk mendapatkan semua sesi dari user
-	query := `SELECT id, id_user, timestamp, user_input, ai_response FROM coach_sessions WHERE id_user=$1`
-	rows, err := r.db.QueryContext(ctx, query, userID)
+	query := `SELECT id, user_id,session_id, timestamp, user_input, ai_response FROM coach_sessions WHERE user_id=$1 ORDER BY timestamp DESC`
+	rows, err := r.db.Query(query, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -71,15 +238,17 @@ func (r *coachRepository) GetSessionByUserID(ctx context.Context, userID int) ([
 	// Iterasi hasil query
 	for rows.Next() {
 		var session model.CoachSession
-		var aiResponse sql.NullString
-
-		err := rows.Scan(&session.ID, &session.UserID, &session.Timestamp, &session.UserInput, &aiResponse)
+		err := rows.Scan(
+			&session.ID,
+			&session.UserID,
+			&session.SessionID,
+			&session.Timestamp,
+			&session.UserInput,
+			&session.AIResponse,
+		)
 		if err != nil {
 			return nil, err
 		}
-
-		session.AIResponse = aiResponse.String
-
 		sessions = append(sessions, session)
 	}
 
@@ -90,25 +259,7 @@ func (r *coachRepository) GetSessionByUserID(ctx context.Context, userID int) ([
 	return sessions, nil
 }
 
-func (r *coachRepository) DeleteSessionByUserID(ctx context.Context, id int) error {
-	query := `DELETE FROM coach_sessions WHERE id_user = $1`
 
-	result, err := r.db.ExecContext(ctx, query, id)
-	if err != nil {
-		return fmt.Errorf("gagal menghapus data session: %w", err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("gagal memeriksa hasil delete: %w", err)
-	}
-	if rowsAffected == 0 {
-		return fmt.Errorf("user dengan ID %d tidak ditemukan", id)
-	}
-
-	return nil
-}
-
-func NewSession(db *sql.DB) CoachRepository {
-	return &coachRepository{db: db}
+func NewSession(db *sql.DB) CouchRepository {
+	return &couchRepository{db: db}
 }
