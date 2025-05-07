@@ -1,47 +1,155 @@
+// package main
+
+// import (
+// 	"database/sql"
+// 	"fmt"
+// 	"log"
+// 	"os"
+// 	"pijar/delivery"
+
+// 	"github.com/joho/godotenv"
+// 	_ "github.com/lib/pq"
+// )
+
+// func init() {
+// 	// Load .env file
+// 	if err := godotenv.Load(); err != nil {
+// 		log.Printf("Warning: .env file not found or error loading: %v", err)
+// 	}
+// }
+
+// func main() {
+// 	// Load database configuration from environment variables
+// 	dbHost := getEnv("DB_HOST", "localhost")
+// 	dbPort := getEnv("DB_PORT", "5432")
+// 	dbUser := getEnv("DB_USER", "postgres")
+// 	dbPass := getEnv("DB_PASS", "")
+// 	dbName := getEnv("DB_NAME", "")
+
+// 	if dbName == "" {
+// 		log.Fatal("DB_NAME environment variable is required")
+// 	}
+// 	if dbPass == "" {
+// 		log.Fatal("DB_PASSWORD environment variable is required")
+// 	}
+
+// 	// Construct database connection string
+// 	dbConnectionString := fmt.Sprintf(
+// 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+// 		dbHost, dbPort, dbUser, dbPass, dbName,
+// 	)
+
+// 	// Connect to database
+// 	db, err := sql.Open("postgres", dbConnectionString)
+// 	if err != nil {
+// 		log.Fatalf("Failed to connect to database: %v", err)
+// 	}
+// 	defer db.Close()
+
+// 	// Configure connection pool
+// 	db.SetMaxOpenConns(25)
+// 	db.SetMaxIdleConns(5)
+
+// 	// Test database connection
+// 	err = db.Ping()
+// 	if err != nil {
+// 		log.Fatalf("Failed to ping database: %v", err)
+// 	}
+// 	log.Println("Successfully connected to database")
+
+// 	// Create and initialize server
+// 	server, err := delivery.NewServer(db)
+// 	if err != nil {
+// 		log.Fatalf("Failed to create server: %v", err)
+// 	}
+
+// 	// Run server
+// 	if err := server.Run(); err != nil {
+// 		log.Fatalf("Server error: %v", err)
+// 	}
+// }
+
+// func getEnv(key, fallback string) string {
+// 	if value, exists := os.LookupEnv(key); exists && value != "" {
+// 		return value
+// 	}
+// 	return fallback
+// }
+
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
+	"pijar/delivery"
 
 	"github.com/joho/godotenv"
-
-	"pijar/repository"
-	"pijar/utils"
+	_ "github.com/lib/pq"
 )
 
-func main() {
-	// Sementara hardcode user ID
-	userID := 1
-
-	// Cek apakah API key tersedia
-	// Load file .env
+func init() {
+	// Load .env file
 	if err := godotenv.Load(); err != nil {
-		log.Fatal("Gagal memuat file .env:", err)
+		log.Printf("Warning: .env file not found or error loading: %v", err)
+	}
+}
+
+func mainaa() {
+	// Load database configuration from environment variables
+	dbHost := getEnv("DB_HOST", "localhost")
+	dbPort := getEnv("DB_PORT", "5432")
+	dbUser := getEnv("DB_USER", "postgres")
+	dbPass := getEnv("DB_PASS", "")
+	dbName := getEnv("DB_NAME", "")
+
+	if dbName == "" {
+		log.Fatal("DB_NAME environment variable is required")
+	}
+	if dbPass == "" {
+		log.Fatal("DB_PASSWORD environment variable is required")
 	}
 
-	// Cek apakah key tersedia
-	if os.Getenv("DEEPSEEK_API_KEY") == "" {
-		log.Fatal("DEEPSEEK_API_KEY belum diatur di environment")
+	// Construct database connection string
+	dbConnectionString := fmt.Sprintf(
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		dbHost, dbPort, dbUser, dbPass, dbName,
+	)
+
+	// Connect to database
+	db, err := sql.Open("postgres", dbConnectionString)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer db.Close()
+
+	// Configure connection pool
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+
+	// Test database connection
+	err = db.Ping()
+	if err != nil {
+		log.Fatalf("Failed to ping database: %v", err)
+	}
+	log.Println("Successfully connected to database")
+
+	// Create and initialize server
+	server, err := delivery.NewServer(db)
+	if err != nil {
+		log.Fatalf("Failed to create server: %v", err)
 	}
 
-	// Ambil topik-topik mock untuk user ini
-	topics := repository.GetMockTopicsByUserID(userID)
-
-	for _, topic := range topics {
-		fmt.Println("🔍 Memproses topik:", topic.Preference)
-
-		article, err := utils.GenerateArticleFromDeepseek(topic.Preference, topic.Preference, topic.ID)
-		if err != nil {
-			log.Printf("❌ Gagal generate artikel untuk topik '%s': %v\n", topic.Preference, err)
-			continue
-		}
-
-		fmt.Println("\n✅ Artikel berhasil dibuat:")
-		fmt.Println("Judul  :", article.Title)
-		fmt.Println("Sumber :", article.Source)
-		fmt.Println("Isi    :\n" + article.Content)
-		fmt.Println("===")
+	// Run server
+	if err := server.Run(); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
+}
+
+func getEnv(key, fallback string) string {
+	if value, exists := os.LookupEnv(key); exists && value != "" {
+		return value
+	}
+	return fallback
 }

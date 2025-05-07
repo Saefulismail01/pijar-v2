@@ -5,34 +5,56 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
-	"os"
 	"strings"
+	"time"
 
 	"pijar/utils/model_util"
+
+	"github.com/gin-gonic/gin"
 )
 
-type deepseekChatRequest struct {
-	Model    string                `json:"model"`
-	Messages []deepseekChatMessage `json:"messages"`
+func GenerateArticles(c *gin.Context, preferences []string) ([]*model_util.GeneratedArticle, error) {
+	var result []*model_util.GeneratedArticle
+	rand.Seed(time.Now().UnixNano())
+
+	preferensiPool := []string{"teknologi", "bisnis"}
+
+	limit := len(preferences)
+	if limit > 2 {
+		limit = 2
+	}
+
+	for i := 0; i < limit; i++ {
+		preference := preferences[i]
+
+		// Override preferensi jika ada 3 atau lebih
+		if len(preferences) >= 3 {
+			preference = preferensiPool[rand.Intn(len(preferensiPool))]
+		}
+
+		fmt.Printf("🔍 Memproses preferensi: %s\n", preference)
+
+		article, err := GenerateArticleFromDeepseek(c, preference, preference, i+1) // TopicID bisa dummy
+		if err != nil {
+			fmt.Printf("❌ Gagal generate artikel untuk preferensi '%s': %v\n", preference, err)
+			continue
+		}
+
+		result = append(result, article)
+	}
+
+	return result, nil
 }
 
-type deepseekChatMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
+func GenerateArticleFromDeepseek(c *gin.Context, topic string, preference string, topicID int) (*model_util.GeneratedArticle, error) {
+	// Get API key from context that was set in middleware
+	apiKey, exists := c.Get("deepseek_api_key")
+	if !exists {
+		return nil, fmt.Errorf("deepseek API key not found in context")
+	}
 
-type deepseekChatResponse struct {
-	Choices []struct {
-		Message struct {
-			Content string `json:"content"`
-		} `json:"message"`
-	} `json:"choices"`
-	Error map[string]interface{} `json:"error"` // jaga-jaga kalau API kirim error
-}
-
-// GenerateArticleFromDeepseek mengirim prompt dan mengembalikan hasil sebagai struct article
-func GenerateArticleFromDeepseek(topic string, preference string, topicID int) (*model_util.GeneratedArticle, error) {
 	prompt := fmt.Sprintf(`Buat artikel tentang %s dengan format ketat:
 
 1. **Judul:** [1 judul informatif]
@@ -42,9 +64,9 @@ func GenerateArticleFromDeepseek(topic string, preference string, topicID int) (
 3. **Sumber:** [1 referensi/sumber]
 4. **Preferensi:** [%s]`, topic, preference)
 
-	reqBody := deepseekChatRequest{
+	reqBody := model_util.DeepseekChatRequest{
 		Model: "deepseek-chat",
-		Messages: []deepseekChatMessage{
+		Messages: []model_util.DeepseekChatMessage{
 			{Role: "user", Content: prompt},
 		},
 	}
@@ -59,7 +81,8 @@ func GenerateArticleFromDeepseek(topic string, preference string, topicID int) (
 		return nil, fmt.Errorf("gagal buat request: %w", err)
 	}
 
-	req.Header.Set("Authorization", "Bearer "+os.Getenv("DEEPSEEK_API_KEY"))
+	// Use API key from context instead of environment variable
+	req.Header.Set("Authorization", "Bearer "+apiKey.(string))
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{}
@@ -74,16 +97,14 @@ func GenerateArticleFromDeepseek(topic string, preference string, topicID int) (
 		return nil, fmt.Errorf("gagal baca response: %w", err)
 	}
 
-	var result deepseekChatResponse
+	var result model_util.DeepseekChatResponse
 	if err := json.Unmarshal(respBody, &result); err != nil {
-		// Tampilkan isi respon mentah jika gagal decode
 		fmt.Println("Respon mentah:\n", string(respBody))
 		return nil, fmt.Errorf("gagal decode response JSON: %w", err)
 	}
 
-	// Validasi apakah respons berisi artikel
 	if len(result.Choices) == 0 || result.Choices[0].Message.Content == "" {
-		fmt.Println("Respon mentah:\n", string(respBody)) // debug isi JSON
+		fmt.Println("Respon mentah:\n", string(respBody))
 		return nil, fmt.Errorf("tidak ada hasil dari Deepseek")
 	}
 
