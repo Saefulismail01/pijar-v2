@@ -6,38 +6,45 @@ import (
 	"pijar/repository"
 )
 
-type TopicUserUsecase interface {
-	CreateTopicUser(ctx context.Context, userID int, preference string) (int, error)
-	GetTopicByID(ctx context.Context, userID int) ([]model.TopicUser, error)
-	GetAllTopicUsers(ctx context.Context) ([]model.TopicUser, error)
-	UpdateTopicUser(ctx context.Context, id int, preference string) error
-	DeleteTopicUser(ctx context.Context, id int) error
+type TopicUsecase interface {
+	CreateTopic(ctx context.Context, userID int, preference string) (int, error)
+	GetTopicByID(ctx context.Context, id int) (*model.TopicUser, error)
+	GetAllTopics(ctx context.Context) ([]model.TopicUser, error)
+	UpdateTopic(ctx context.Context, id int, preference string) error
+	DeleteTopic(ctx context.Context, id int) error
 }
 
-type topicUserUsecase struct {
-	repo repository.TopicUserRepository
+type topicUsecase struct {
+	topicRepo repository.TopicUserRepository
 }
 
-func (u *topicUserUsecase) CreateTopicUser(ctx context.Context, userID int, preference string) (int, error) {
-	return u.repo.CreateTopicUser(ctx, userID, preference)
+func NewTopicUsecase(topicRepo repository.TopicUserRepository) TopicUsecase {
+	return &topicUsecase{topicRepo: topicRepo}
 }
 
-func (u *topicUserUsecase) GetTopicByID(ctx context.Context, userID int) ([]model.TopicUser, error) {
-	return u.repo.GetTopicByID(ctx, userID)
+func (uc *topicUsecase) CreateTopic(ctx context.Context, userID int, preference string) (int, error) {
+	return uc.topicRepo.CreateTopicUser(ctx, userID, preference)
 }
 
-func (u *topicUserUsecase) GetAllTopicUsers(ctx context.Context) ([]model.TopicUser, error) {
-	return u.repo.GetAllTopicUsers(ctx)
+func (uc *topicUsecase) GetTopicByID(ctx context.Context, id int) (*model.TopicUser, error) {
+	topics, err := uc.topicRepo.GetTopicByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if len(topics) == 0 {
+		return nil, nil
+	}
+	return &topics[0], nil
 }
 
-func (u *topicUserUsecase) UpdateTopicUser(ctx context.Context, id int, preference string) error {
-	return u.repo.UpdateTopicUser(ctx, id, preference)
+func (uc *topicUsecase) GetAllTopics(ctx context.Context) ([]model.TopicUser, error) {
+	return uc.topicRepo.GetAllTopicUsers(ctx)
 }
 
-func (u *topicUserUsecase) DeleteTopicUser(ctx context.Context, id int) error {
-	return u.repo.DeleteTopicUser(ctx, id)
+func (uc *topicUsecase) UpdateTopic(ctx context.Context, id int, preference string) error {
+	return uc.topicRepo.UpdateTopicUser(ctx, id, preference)
 }
 
-func NewTopicUsecase(repo repository.TopicUserRepository) TopicUserUsecase {
-	return &topicUserUsecase{repo: repo}
+func (uc *topicUsecase) DeleteTopic(ctx context.Context, id int) error {
+	return uc.topicRepo.DeleteTopicUser(ctx, id)
 }

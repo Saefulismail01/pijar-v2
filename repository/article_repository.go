@@ -6,8 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"pijar/model"
-	"pijar/utils"
-	"strconv"
+	"pijar/utils/service"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -19,6 +18,7 @@ type ArticleRepository interface {
 	GetAllArticles(ctx context.Context) ([]model.Article, error)
 	GetArticleByID(ctx context.Context, id int) (*model.Article, error)
 	GetArticleByTitle(ctx context.Context, title string) (*model.Article, error)
+	SearchArticlesByTitle(ctx context.Context, title string) ([]model.Article, error)
 	UpdateArticle(ctx context.Context, article *model.Article) error
 	DeleteArticle(ctx context.Context, id int) error
 	BeginTx(ctx context.Context) (*sql.Tx, error)
@@ -37,23 +37,61 @@ func NewArticleRepository(db *sql.DB) ArticleRepository {
 }
 
 func (r *articleRepository) GenerateArticle(ctx context.Context, tx *sql.Tx, topicID int) ([]model.Article, error) {
-	// Nilai dari context
-	currentTime, _ := time.Parse("2006-01-02 15:04:05", "2025-05-07 10:42:41")
+	// Get current time for article creation
+	currentTime := time.Now()
 
-	// Langsung convert topic_id ke string untuk preference
-	preferences := []string{strconv.Itoa(topicID)}
+	// First, get the topic preference from the database
+	var preference string
+	var userID int
+	query := `SELECT preference, user_id FROM topics WHERE id = $1`
+	
+	// Log the query being executed
+	fmt.Printf("Executing query: %s with topicID: %d\n", query, topicID)
+	
+	err := r.db.QueryRowContext(ctx, query, topicID).Scan(&preference, &userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("topic with ID %d not found in database", topicID)
+		}
+		return nil, fmt.Errorf("database error when getting topic %d: %w", topicID, err)
+	}
+	
+	// Log successful retrieval
+	fmt.Printf("Successfully retrieved topic ID %d - Preference: %s, UserID: %d\n", topicID, preference, userID)
 
-	// Generate articles menggunakan utils
-	generatedArticles, err := utils.GenerateArticles(ctx.(*gin.Context), preferences)
+	// Create a new context with topic_id for the article generation service
+	ginCtx, ok := ctx.(*gin.Context)
+	if !ok {
+		// If we can't get the gin context, create a new one
+		ginCtx = &gin.Context{}
+	}
+	
+	// Set topic_id and user_id in the context
+	ginCtx.Set("topic_id", topicID)
+	ginCtx.Set("user_id", userID)
+
+	// Use the actual preference for article generation
+	preferences := []string{preference}
+
+	// Log the article generation process
+	fmt.Printf("Generating articles for topic ID %d with preference: %s\n", topicID, preference)
+
+	// Generate articles using the service package
+	generatedArticles, err := service.GenerateArticles(ginCtx, preferences)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate articles: %w", err)
 	}
 
+	// Check if we got any articles
+	if len(generatedArticles) == 0 {
+		return nil, fmt.Errorf("no articles were generated for topic ID %d", topicID)
+	}
+
 	articles := make([]model.Article, len(generatedArticles))
 
-	// Loop untuk setiap article yang digenerate
+	// Loop for each generated article
 	for i, genArticle := range generatedArticles {
-		// Buat article model
+		// Create article model
 		article := &model.Article{
 			Title:     genArticle.Title,
 			Content:   genArticle.Content,
@@ -62,7 +100,7 @@ func (r *articleRepository) GenerateArticle(ctx context.Context, tx *sql.Tx, top
 			CreatedAt: currentTime,
 		}
 
-		// Gunakan CreateArticle untuk insert ke database
+		// Use CreateArticle to insert into database
 		if err := r.CreateArticle(ctx, tx, article); err != nil {
 			return nil, err
 		}
@@ -73,16 +111,34 @@ func (r *articleRepository) GenerateArticle(ctx context.Context, tx *sql.Tx, top
 	return articles, nil
 }
 
-// CreateArticle juga perlu disesuaikan
+// CreateArticle inserts a new article into the database using the provided transaction
 func (r *articleRepository) CreateArticle(ctx context.Context, tx *sql.Tx, article *model.Article) error {
-	query := `
-        INSERT INTO articles (title, content, source, id_topic, created_at)
+	// Validate article data before insertion
+	if article.Title == "" || article.Content == "" {
+		return fmt.Errorf("article title and content cannot be empty")
+	}
+
+	// Ensure topic ID exists
+	var topicExists bool
+	query := `SELECT EXISTS(SELECT 1 FROM topics WHERE id = $1)`
+	err := r.db.QueryRowContext(ctx, query, article.IDTopic).Scan(&topicExists)
+	if err != nil {
+		return fmt.Errorf("failed to check if topic exists: %w", err)
+	}
+
+	if !topicExists {
+		return fmt.Errorf("topic with ID %d does not exist", article.IDTopic)
+	}
+
+	// Insert the article
+	insertQuery := `
+        INSERT INTO articles (title, content, source, topic_id, created_at)
         VALUES ($1, $2, $3, $4, $5)
         RETURNING id`
 
-	err := tx.QueryRowContext(
+	err = tx.QueryRowContext(
 		ctx,
-		query,
+		insertQuery,
 		article.Title,
 		article.Content,
 		article.Source,
@@ -99,7 +155,7 @@ func (r *articleRepository) CreateArticle(ctx context.Context, tx *sql.Tx, artic
 
 func (r *articleRepository) GetAllArticles(ctx context.Context) ([]model.Article, error) {
 	query := `
-        SELECT id, title, content, source, id_topic, created_at 
+        SELECT id, title, content, source, topic_id, created_at 
         FROM articles 
         ORDER BY created_at DESC`
 
@@ -131,7 +187,7 @@ func (r *articleRepository) GetAllArticles(ctx context.Context) ([]model.Article
 
 func (r *articleRepository) GetArticleByID(ctx context.Context, id int) (*model.Article, error) {
 	query := `
-		SELECT id, title, content, source, id_topic, created_at 
+		SELECT id, title, content, source, topic_id, created_at 
 		FROM articles 
 		WHERE id = $1`
 
@@ -157,9 +213,9 @@ func (r *articleRepository) GetArticleByID(ctx context.Context, id int) (*model.
 
 func (r *articleRepository) GetArticleByTitle(ctx context.Context, title string) (*model.Article, error) {
 	query := `
-		SELECT id, title, content, source, id_topic, created_at 
+		SELECT id, title, content, source, topic_id, created_at 
 		FROM articles 
-		WHERE title = $1`
+		WHERE LOWER(title) = LOWER($1)`
 
 	var article model.Article
 	err := r.db.QueryRowContext(ctx, query, title).Scan(
@@ -181,17 +237,58 @@ func (r *articleRepository) GetArticleByTitle(ctx context.Context, title string)
 	return &article, nil
 }
 
+
+func (r *articleRepository) SearchArticlesByTitle(ctx context.Context, title string) ([]model.Article, error) {
+	query := `
+		SELECT id, title, content, source, topic_id, created_at 
+		FROM articles 
+		WHERE LOWER(title) LIKE LOWER($1)
+		ORDER BY title
+		LIMIT 5`
+
+	rows, err := r.db.QueryContext(ctx, query, "%"+title+"%")
+	if err != nil {
+		return nil, fmt.Errorf("failed to search articles: %w", err)
+	}
+	defer rows.Close()
+
+	var articles []model.Article
+	for rows.Next() {
+		var article model.Article
+		err := rows.Scan(
+			&article.ID,
+			&article.Title,
+			&article.Content,
+			&article.Source,
+			&article.IDTopic,
+			&article.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan article: %w", err)
+		}
+		articles = append(articles, article)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating articles: %w", err)
+	}
+
+	return articles, nil
+}
+
+
 func (r *articleRepository) UpdateArticle(ctx context.Context, article *model.Article) error {
 	query := `
 		UPDATE articles 
-		SET title = $1, content = $2, source = $3, id_topic = $4
-		WHERE id = $5`
+		SET title = $1, content = $2, source = $3, topic_id = $4, updated_at = $5 
+		WHERE id = $6`
 
 	result, err := r.db.ExecContext(ctx, query,
 		article.Title,
 		article.Content,
 		article.Source,
 		article.IDTopic,
+		time.Now(),
 		article.ID,
 	)
 	if err != nil {

@@ -15,3 +15,14 @@ type GenerateArticleInput struct {
 type GenerateArticleRequest struct {
 	TopicID int `json:"topic_id" binding:"required"`
 }
+
+type ArticleSearchRequest struct {
+	Title string `json:"title" binding:"required"`
+}
+
+type ArticleSearchResponse struct {
+	Found        bool            `json:"found"`
+	Article      interface{}     `json:"article,omitempty"`
+	Suggestions  []string        `json:"suggestions,omitempty"`
+	Message      string          `json:"message"`
+}

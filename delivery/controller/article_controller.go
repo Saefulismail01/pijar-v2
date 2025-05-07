@@ -10,39 +10,75 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type ArticleController interface {
-	GenerateArticle(c *gin.Context)
-	GetAllArticles(c *gin.Context)
-	GetArticleByID(c *gin.Context)
-	GetArticleByTitle(c *gin.Context)
-	UpdateArticle(c *gin.Context)
-	DeleteArticle(c *gin.Context)
-	RegisterRoutes(rg *gin.RouterGroup, protected *gin.RouterGroup)
-}
-
-type articleControllerImpl struct {
+type ArticleControllerImpl struct {
 	articleUsecase usecase.ArticleUsecase
+	RouterGroup *gin.RouterGroup
 }
 
-func NewArticleController(au usecase.ArticleUsecase) ArticleController {
-	return &articleControllerImpl{articleUsecase: au}
-}
 
-func (ac *articleControllerImpl) RegisterRoutes(rg *gin.RouterGroup, protected *gin.RouterGroup) {
-	// Public routes
-	rg.GET("/articles", ac.GetAllArticles)
-	rg.GET("/articles/:id", ac.GetArticleByID)
-	rg.GET("/articles/title/:title", ac.GetArticleByTitle)
+func (ac *ArticleControllerImpl) SearchArticleByTitle(c *gin.Context) {
+	var searchReq dto.ArticleSearchRequest
+	if err := c.ShouldBindJSON(&searchReq); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  http.StatusBadRequest,
+			"message": "Invalid request body",
+			"error":   err.Error(),
+		})
+		return
+	}
 
-	// Protected routes
-	protected.POST("/articles/generate", ac.GenerateArticle)
-	protected.PUT("/articles/:id", ac.UpdateArticle)
-	protected.DELETE("/articles/:id", ac.DeleteArticle)
+	if searchReq.Title == "" {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  http.StatusBadRequest,
+			"message": "Title is required in the request body",
+		})
+		return
+	}
+
+	// Search for articles with similar titles
+	articles, err := ac.articleUsecase.SearchArticlesByTitle(c.Request.Context(), searchReq.Title)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"status":  http.StatusInternalServerError,
+			"message": "Failed to search articles",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Check if any articles were found
+	if len(articles) == 0 {
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{
+			"status":  http.StatusNotFound,
+			"message": "No articles found matching the search criteria",
+		})
+		return
+	}
+
+	// Prepare response
+	response := dto.ArticleSearchResponse{
+		Found:    true,
+		Article:  articles[0],
+		Message:  "Article found",
+	}
+
+	// If there are more than one result, include them as suggestions
+	if len(articles) > 1 {
+		suggestions := make([]string, 0, len(articles)-1)
+		for _, article := range articles[1:] {
+			suggestions = append(suggestions, article.Title)
+		}
+		response.Suggestions = suggestions
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // GenerateArticle handles article generation from topic ID
-func (ac *articleControllerImpl) GenerateArticle(c *gin.Context) {
-	var input dto.ArticleDto
+func (ac *ArticleControllerImpl) GenerateArticle(c *gin.Context) {
+	// For simplicity, use a default user ID
+	// Parse the request body
+	var input dto.GenerateArticleRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"status":  http.StatusBadRequest,
@@ -52,24 +88,43 @@ func (ac *articleControllerImpl) GenerateArticle(c *gin.Context) {
 		return
 	}
 
+	// Log the request
+	fmt.Printf("GenerateArticle request received for topic ID: %d\n", input.TopicID)
+
+	// Generate articles based on the topic ID
 	articles, err := ac.articleUsecase.GenerateArticle(c.Request.Context(), input.TopicID)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-			"status":  http.StatusInternalServerError,
-			"message": "Internal Server Error",
-			"errors":  err.Error(),
+		statusCode := http.StatusInternalServerError
+		errorMsg := err.Error()
+		
+		// Check for specific error messages to provide appropriate status codes
+		if errorMsg == fmt.Sprintf("topic with ID %d not found in database", input.TopicID) || 
+		   errorMsg == fmt.Sprintf("topic with ID %d does not exist", input.TopicID) ||
+		   errorMsg == fmt.Sprintf("topic with ID %d not found", input.TopicID) {
+			statusCode = http.StatusNotFound
+		}
+
+		// Log the detailed error
+		fmt.Printf("Error generating articles for topic ID %d: %v\n", input.TopicID, errorMsg)
+		
+		c.AbortWithStatusJSON(statusCode, gin.H{
+			"status":  statusCode,
+			"message": http.StatusText(statusCode),
+			"errors":  errorMsg,
+			"details": fmt.Sprintf("Failed to generate articles for topic ID: %d", input.TopicID),
 		})
 		return
 	}
 
+	// Return the generated articles
 	c.JSON(http.StatusCreated, gin.H{
 		"status":  http.StatusCreated,
-		"message": "Success generate article",
+		"message": "Articles generated successfully",
 		"data":    articles,
 	})
 }
 
-func (ac *articleControllerImpl) GetAllArticles(c *gin.Context) {
+func (ac *ArticleControllerImpl) GetAllArticles(c *gin.Context) {
 	articles, err := ac.articleUsecase.GetAllArticles(c.Request.Context())
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -82,7 +137,7 @@ func (ac *articleControllerImpl) GetAllArticles(c *gin.Context) {
 	})
 }
 
-func (ac *articleControllerImpl) GetArticleByID(c *gin.Context) {
+func (ac *ArticleControllerImpl) GetArticleByID(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -106,30 +161,51 @@ func (ac *articleControllerImpl) GetArticleByID(c *gin.Context) {
 	})
 }
 
-func (ac *articleControllerImpl) GetArticleByTitle(c *gin.Context) {
-	title := c.Param("title")
-	if title == "" {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Title parameter is required"})
-		return
-	}
+// func (ac *ArticleControllerImpl) GetArticleByTitle(c *gin.Context) {
+// 	var input struct {
+// 		Title string `json:"title" binding:"required"`
+// 	}
 
-	article, err := ac.articleUsecase.GetArticleByTitle(c.Request.Context(), title)
-	if err != nil {
-		if err.Error() == fmt.Sprintf("article with title '%s' not found", title) {
-			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
+// 	if err := c.ShouldBindJSON(&input); err != nil {
+// 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+// 			"status":  http.StatusBadRequest,
+// 			"message": "Bad Request",
+// 			"errors":  "Title is required in the request body",
+// 		})
+// 		return
+// 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Get article by title successful",
-		"data":    article,
-	})
-}
+// 	if input.Title == "" {
+// 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+// 			"status":  http.StatusBadRequest,
+// 			"message": "Bad Request",
+// 			"errors":  "Title cannot be empty",
+// 		})
+// 		return
+// 	}
 
-func (ac *articleControllerImpl) UpdateArticle(c *gin.Context) {
+// 	article, err := ac.articleUsecase.GetArticleByTitle(c.Request.Context(), input.Title)
+// 	if err != nil {
+// 		statusCode := http.StatusInternalServerError
+// 		if err.Error() == fmt.Sprintf("article with title '%s' not found", input.Title) {
+// 			statusCode = http.StatusNotFound
+// 		}
+// 		c.AbortWithStatusJSON(statusCode, gin.H{
+// 			"status":  statusCode,
+// 			"message": http.StatusText(statusCode),
+// 			"errors":  err.Error(),
+// 		})
+// 		return
+// 	}
+
+// 	c.JSON(http.StatusOK, gin.H{
+// 		"status":  http.StatusOK,
+// 		"message": "Article retrieved successfully",
+// 		"data":    article,
+// 	})
+// }
+
+func (ac *ArticleControllerImpl) UpdateArticle(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -158,7 +234,7 @@ func (ac *articleControllerImpl) UpdateArticle(c *gin.Context) {
 	})
 }
 
-func (ac *articleControllerImpl) DeleteArticle(c *gin.Context) {
+func (ac *ArticleControllerImpl) DeleteArticle(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -179,4 +255,19 @@ func (ac *articleControllerImpl) DeleteArticle(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Article deletion successful",
 	})
+}
+
+func (ac *ArticleControllerImpl) Route(){
+	ac.RouterGroup.GET("/articles", ac.GetAllArticles)
+	ac.RouterGroup.GET("/articles/:id", ac.GetArticleByID)
+	ac.RouterGroup.POST("/articles/generate", ac.GenerateArticle)
+	ac.RouterGroup.PUT("/articles/:id", ac.UpdateArticle)
+	ac.RouterGroup.DELETE("/articles/:id", ac.DeleteArticle)
+	ac.RouterGroup.POST("/articles/search", ac.SearchArticleByTitle)
+}
+
+func NewArticleController(au usecase.ArticleUsecase, rg *gin.RouterGroup) *ArticleControllerImpl {
+	return &ArticleControllerImpl{
+		articleUsecase: au, 
+		RouterGroup: rg}
 }

@@ -3,171 +3,190 @@ package controller
 import (
 	"fmt"
 	"net/http"
-	"pijar/model"
+	"pijar/model/dto"
 	"pijar/usecase"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
-type TopicController interface {
-	CreateTopic(c *gin.Context)
-	GetAllTopics(c *gin.Context)
-	GetTopicByID(c *gin.Context)
-	UpdateTopic(c *gin.Context)
-	DeleteTopic(c *gin.Context)
-	RegisterRoutes(rg *gin.RouterGroup, protected *gin.RouterGroup)
+
+type TopicControllerImpl struct {
+	topicUsecase usecase.TopicUsecase
+	RouterGroup *gin.RouterGroup
 }
 
-type topicControllerImpl struct {
-	topicUsecase usecase.TopicUserUsecase
+func NewTopicController(tu usecase.TopicUsecase, rg *gin.RouterGroup) *TopicControllerImpl {
+	return &TopicControllerImpl{topicUsecase: tu, 
+		RouterGroup: rg}
 }
 
-func NewTopicController(tu usecase.TopicUserUsecase) TopicController {
-	return &topicControllerImpl{topicUsecase: tu}
+
+func (tc *TopicControllerImpl) Route(){
+	tc.RouterGroup.POST("/topics", tc.CreateTopic)
+	tc.RouterGroup.GET("/topics", tc.GetAllTopics)
+	tc.RouterGroup.GET("/topics/:id", tc.GetTopicByID)
+	tc.RouterGroup.PUT("/topics/:id", tc.UpdateTopic)
+	tc.RouterGroup.DELETE("/topics/:id", tc.DeleteTopic)
+
 }
 
-func (tc *topicControllerImpl) RegisterRoutes(rg *gin.RouterGroup, protected *gin.RouterGroup) {
-	// Public routes
-	rg.GET("/topics", tc.GetAllTopics)
-	rg.GET("/topics/:id", tc.GetTopicByID)
+func (tc *TopicControllerImpl) CreateTopic(c *gin.Context) {
+	// Parse request body
+	var input dto.InputTopic
 
-	// Protected routes
-	protected.POST("/topics", tc.CreateTopic)
-	protected.PUT("/topics/:id", tc.UpdateTopic)
-	protected.DELETE("/topics/:id", tc.DeleteTopic)
-}
-
-func (tc *topicControllerImpl) CreateTopic(c *gin.Context) {
-	var topicUser model.TopicUser
-	if err := c.ShouldBindJSON(&topicUser); err != nil {
+	if err := c.ShouldBindJSON(&input); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": "Format request tidak valid",
+			"status":  http.StatusBadRequest,
+			"message": "Bad Request",
+			"errors":  fmt.Sprintf("Format request tidak valid: %v", err.Error()),
 		})
 		return
 	}
 
-	id, err := tc.topicUsecase.CreateTopicUser(c.Request.Context(), topicUser.UserID, topicUser.Preference)
+	// Create topic with provided user ID
+	topicID, err := tc.topicUsecase.CreateTopic(c.Request.Context(), input.UserID, input.Preference)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-			"error": "Gagal membuat topic user: " + err.Error(),
+			"status":  http.StatusInternalServerError,
+			"message": "Internal Server Error",
+			"errors":  err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "Topic user berhasil dibuat",
+		"status":  http.StatusCreated,
+		"message": "Topic created successfully",
 		"data": gin.H{
-			"id": id,
+			"id":         topicID,
+			"user_id":    input.UserID,
+			"preference": input.Preference,
 		},
 	})
 }
 
-func (tc *topicControllerImpl) GetAllTopics(c *gin.Context) {
-	topics, err := tc.topicUsecase.GetAllTopicUsers(c.Request.Context())
+func (tc *TopicControllerImpl) GetTopicByID(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  http.StatusBadRequest,
+			"message": "Bad Request",
+			"errors":  "Invalid ID format",
+		})
+		return
+	}
+
+	topic, err := tc.topicUsecase.GetTopicByID(c.Request.Context(), id)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-			"error": "Gagal mengambil daftar topic user: " + err.Error(),
+			"status":  http.StatusInternalServerError,
+			"message": "Internal Server Error",
+			"errors":  err.Error(),
+		})
+		return
+	}
+
+	if topic == nil {
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{
+			"status":  http.StatusNotFound,
+			"message": "Not Found",
+			"errors":  fmt.Sprintf("Topic with ID %d not found", id),
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Berhasil mengambil semua topic user",
+		"status":  http.StatusOK,
+		"message": "Topic retrieved successfully",
+		"data":    topic,
+	})
+}
+
+func (tc *TopicControllerImpl) GetAllTopics(c *gin.Context) {
+	topics, err := tc.topicUsecase.GetAllTopics(c.Request.Context())
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"status":  http.StatusInternalServerError,
+			"message": "Internal Server Error",
+			"errors":  err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":  http.StatusOK,
+		"message": "Topics retrieved successfully",
 		"data":    topics,
 	})
 }
 
-func (c *topicControllerImpl) GetTopicByID(ctx *gin.Context) {
-	id, err := strconv.Atoi(ctx.Param("id"))
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "ID topic tidak valid",
-		})
-		return
-	}
-
-	topics, err := c.topicUsecase.GetTopicByID(ctx, id)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
-		return
-	}
-
-	if len(topics) == 0 {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"error": fmt.Sprintf("Topic dengan ID %d tidak ditemukan", id),
-		})
-		return
-	}
-
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Berhasil mengambil topic by ID",
-		"data":    topics,
-	})
-}
-
-func (tc *topicControllerImpl) UpdateTopic(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
+func (tc *TopicControllerImpl) UpdateTopic(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": "ID topic tidak valid",
+			"status":  http.StatusBadRequest,
+			"message": "Bad Request",
+			"errors":  "Invalid ID format",
 		})
 		return
 	}
 
-	var topicUser model.TopicUser
-	if err := c.ShouldBindJSON(&topicUser); err != nil {
+	var input struct {
+		Preference string `json:"preference" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": "Format request tidak valid",
+			"status":  http.StatusBadRequest,
+			"message": "Bad Request",
+			"errors":  fmt.Sprintf("Format request tidak valid: %v", err.Error()),
 		})
 		return
 	}
 
-	err = tc.topicUsecase.UpdateTopicUser(c.Request.Context(), id, topicUser.Preference)
+	err = tc.topicUsecase.UpdateTopic(c.Request.Context(), id, input.Preference)
 	if err != nil {
-		if err.Error() == fmt.Sprintf("topic user dengan ID %d tidak ditemukan", id) {
-			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{
-				"error": err.Error(),
-			})
-			return
-		}
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-			"error": "Gagal memperbarui topic user: " + err.Error(),
+			"status":  http.StatusInternalServerError,
+			"message": "Internal Server Error",
+			"errors":  err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": fmt.Sprintf("Topic user dengan ID %d berhasil diperbarui", id),
+		"status":  http.StatusOK,
+		"message": "Topic updated successfully",
 	})
 }
 
-func (tc *topicControllerImpl) DeleteTopic(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
+func (tc *TopicControllerImpl) DeleteTopic(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": "ID topic tidak valid",
+			"status":  http.StatusBadRequest,
+			"message": "Bad Request",
+			"errors":  "Invalid ID format",
 		})
 		return
 	}
 
-	err = tc.topicUsecase.DeleteTopicUser(c.Request.Context(), id)
+	err = tc.topicUsecase.DeleteTopic(c.Request.Context(), id)
 	if err != nil {
-		if err.Error() == fmt.Sprintf("topic user dengan ID %d tidak ditemukan", id) {
-			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{
-				"error": err.Error(),
-			})
-			return
-		}
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-			"error": "Gagal menghapus topic user: " + err.Error(),
+			"status":  http.StatusInternalServerError,
+			"message": "Internal Server Error",
+			"errors":  err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": fmt.Sprintf("Topic user dengan ID %d berhasil dihapus", id),
+		"status":  http.StatusOK,
+		"message": "Topic deleted successfully",
 	})
 }
