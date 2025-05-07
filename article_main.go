@@ -96,7 +96,7 @@ func init() {
 	}
 }
 
-func main() {
+func mainaa() {
 	// Load database configuration from environment variables
 	dbHost := getEnv("DB_HOST", "localhost")
 	dbPort := getEnv("DB_PORT", "5432")
