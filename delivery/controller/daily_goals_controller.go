@@ -47,6 +47,10 @@ func (c *dailyGoalsController) CreateGoal(ctx *gin.Context) {
 
 	createdGoal, err := c.uc.CreateGoal(ctx.Request.Context(), userID, req.Title, req.Task, req.ArticlesToRead)
 	if err != nil {
+		if strings.Contains(err.Error(), "invalid article IDs") {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create goal: " + err.Error()})
 		return
 	}
@@ -184,6 +188,11 @@ func (c *dailyGoalsController) UpdateGoal(ctx *gin.Context) {
 		req.ArticlesToRead,
 	)
 	if err != nil {
+		// Handle article IDs error from usecase
+		if strings.Contains(err.Error(), "invalid article IDs") {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update goal: " + err.Error()})
 		return
 	}

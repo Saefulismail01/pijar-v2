@@ -4,13 +4,9 @@ import (
 	"context"
 	"fmt"
 	"pijar/model"
+	"pijar/model/dto"
 	"pijar/repository"
 )
-
-type GoalProgressInfo struct {
-	Goal     model.UserGoal
-	Progress []model.ArticleProgress
-}
 
 type DailyGoalUseCase interface {
 	CreateGoal(
@@ -30,13 +26,13 @@ type DailyGoalUseCase interface {
 		task string,
 		completed bool,
 		articlesToRead []int64,
-	) (GoalProgressInfo, error)
+	) (dto.GoalProgressInfo, error)
 	CompleteArticleProgress(
 		ctx context.Context,
 		goalID int,
 		articleID int,
 		userID int,
-	) (GoalProgressInfo, error)
+	) (dto.GoalProgressInfo, error)
 	DeleteGoal(ctx context.Context, userID int, goalID int) error
 }
 
@@ -48,29 +44,29 @@ func NewGoalUseCase(repo repository.DailyGoalRepository) DailyGoalUseCase {
 	return &dailyGoalUseCase{repo: repo}
 }
 
-func (uc *dailyGoalUseCase) CompleteArticleProgress(ctx context.Context, goalID int, articleID int, userID int) (GoalProgressInfo, error) {
+func (uc *dailyGoalUseCase) CompleteArticleProgress(ctx context.Context, goalID int, articleID int, userID int) (dto.GoalProgressInfo, error) {
 	// Get the goal first to verify it exists and belongs to the user
 	goal, err := uc.repo.GetGoalByID(ctx, goalID, userID)
 	if err != nil {
-		return GoalProgressInfo{}, fmt.Errorf("failed to get goal: %v", err)
+		return dto.GoalProgressInfo{}, fmt.Errorf("failed to get goal: %v", err)
 	}
 
 	// Complete the article progress
 	err = uc.repo.CompleteArticleProgress(ctx, goalID, int64(articleID), true)
 	if err != nil {
-		return GoalProgressInfo{}, fmt.Errorf("failed to complete article progress: %v", err)
+		return dto.GoalProgressInfo{}, fmt.Errorf("failed to complete article progress: %v", err)
 	}
 
 	// Get the updated goal
 	updatedGoal, err := uc.repo.GetGoalByID(ctx, goalID, userID)
 	if err != nil {
-		return GoalProgressInfo{}, fmt.Errorf("failed to get updated goal: %v", err)
+		return dto.GoalProgressInfo{}, fmt.Errorf("failed to get updated goal: %v", err)
 	}
 
 	// Check if we need to update the main goal status
 	completedCount, err := uc.repo.CountCompletedProgress(ctx, goalID, userID)
 	if err != nil {
-		return GoalProgressInfo{}, fmt.Errorf("failed to count completed progress: %v", err)
+		return dto.GoalProgressInfo{}, fmt.Errorf("failed to count completed progress: %v", err)
 	}
 
 	// Log untuk debugging
@@ -92,17 +88,17 @@ func (uc *dailyGoalUseCase) CompleteArticleProgress(ctx context.Context, goalID 
 			userID,
 		)
 		if err != nil {
-			return GoalProgressInfo{}, fmt.Errorf("failed to update goal status: %v", err)
+			return dto.GoalProgressInfo{}, fmt.Errorf("failed to update goal status: %v", err)
 		}
 	}
 
 	// Get the updated progress information
 	progress, err := uc.repo.GetGoalProgress(ctx, goalID, userID)
 	if err != nil {
-		return GoalProgressInfo{}, fmt.Errorf("failed to get goal progress: %v", err)
+		return dto.GoalProgressInfo{}, fmt.Errorf("failed to get goal progress: %v", err)
 	}
 
-	return GoalProgressInfo{
+	return dto.GoalProgressInfo{
 		Goal:     updatedGoal,
 		Progress: progress,
 	}, nil
@@ -125,6 +121,17 @@ func (uc *dailyGoalUseCase) GetGoalByID(ctx context.Context, userID int, goalID 
 }
 
 func (uc *dailyGoalUseCase) CreateGoal(ctx context.Context, userID int, title string, task string, articlesToRead []int64) (model.UserGoal, error) {
+	// validate article id
+	if len(articlesToRead) > 0 {
+		invalidIDs, err := uc.repo.ValidateArticleIDs(ctx, articlesToRead)
+		if err != nil {
+			return model.UserGoal{}, fmt.Errorf("failed to validate articles: %v", err)
+		}
+
+		if len(invalidIDs) > 0 {
+			return model.UserGoal{}, fmt.Errorf("invalid article IDs: %v", invalidIDs)
+		}
+	}
 	// create goals fields
 	newGoal := model.UserGoal{
 		UserID:         userID,
@@ -151,11 +158,22 @@ func (uc *dailyGoalUseCase) UpdateGoal(
 	task string,
 	completed bool,
 	newArticlesToRead []int64,
-) (GoalProgressInfo, error) {
-	// Get the existing goal first
+) (dto.GoalProgressInfo, error) {
+	// Validate article IDs
+	if len(newArticlesToRead) > 0 {
+		invalidIDs, err := uc.repo.ValidateArticleIDs(ctx, newArticlesToRead)
+		if err != nil {
+			return dto.GoalProgressInfo{}, fmt.Errorf("failed to validate articles: %v", err)
+		}
+
+		if len(invalidIDs) > 0 {
+			return dto.GoalProgressInfo{}, fmt.Errorf("invalid article IDs: %v", invalidIDs)
+		}
+	}
+	// Get the existing goal
 	existingGoal, err := uc.repo.GetGoalByID(ctx, goalID, userID)
 	if err != nil {
-		return GoalProgressInfo{}, fmt.Errorf("failed to get existing goal: %v", err)
+		return dto.GoalProgressInfo{}, fmt.Errorf("failed to get existing goal: %v", err)
 	}
 
 	// Merge existing articles with new ones, removing duplicates
@@ -184,16 +202,16 @@ func (uc *dailyGoalUseCase) UpdateGoal(
 	// Update the goal with merged articles
 	result, err := uc.repo.UpdateGoal(ctx, &updatedGoal, articlesToRead, userID)
 	if err != nil {
-		return GoalProgressInfo{}, fmt.Errorf("usecase error: %v", err)
+		return dto.GoalProgressInfo{}, fmt.Errorf("usecase error: %v", err)
 	}
 
 	// Get the progress information
 	progress, err := uc.repo.GetGoalProgress(ctx, goalID, userID)
 	if err != nil {
-		return GoalProgressInfo{}, fmt.Errorf("failed to get goal progress: %v", err)
+		return dto.GoalProgressInfo{}, fmt.Errorf("failed to get goal progress: %v", err)
 	}
 
-	return GoalProgressInfo{
+	return dto.GoalProgressInfo{
 		Goal:     result,
 		Progress: progress,
 	}, nil
