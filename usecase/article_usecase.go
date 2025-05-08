@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"pijar/model"
-	"pijar/model/dto"
 	"pijar/repository"
 	"pijar/utils/service"
 
@@ -18,7 +17,7 @@ type ArticleUsecase interface {
 	GetArticleByID(ctx context.Context, id int) (*model.Article, error)
 	// GetArticleByTitle(ctx context.Context, title string) (*model.Article, error)
 	SearchArticlesByTitle(ctx context.Context, title string) ([]model.Article, error)
-	UpdateArticle(ctx context.Context, articleDto *dto.ArticleDto, id int) error
+	//UpdateArticle(ctx context.Context, articleDto *dto.ArticleDto, id int) error
 	DeleteArticle(ctx context.Context, id int) error
 }
 
@@ -91,11 +90,11 @@ func (u *articleUsecase) GenerateArticle(ctx context.Context, topicID int) ([]mo
 		if err != nil {
 			return nil, fmt.Errorf("failed to get topic: %w", err)
 		}
-		
+
 		if len(topics) > 0 {
 			topicExists = true
 			topicPreference = topics[0].Preference
-			
+
 			// If we have a gin context, set the user ID
 			if isGinCtx {
 				ginCtx.Set("user_id", topics[0].UserID)
@@ -126,10 +125,10 @@ func (u *articleUsecase) GenerateArticle(ctx context.Context, topicID int) ([]mo
 
 		return articles, nil
 	}
-	
+
 	// If we get here, we've confirmed the topic exists and have its preference
 	fmt.Printf("Topic found with preference: %s\n", topicPreference)
-	
+
 	// Start transaction
 	tx, err := u.articleRepo.BeginTx(ctx)
 	if err != nil {
@@ -183,27 +182,27 @@ func (u *articleUsecase) SearchArticlesByTitle(ctx context.Context, title string
 	return u.articleRepo.SearchArticlesByTitle(ctx, title)
 }
 
-func (u *articleUsecase) UpdateArticle(ctx context.Context, articleDto *dto.ArticleDto, id int) error {
-	// Check if article exists
-	existingArticle, err := u.articleRepo.GetArticleByID(ctx, id)
-	if err != nil {
-		return fmt.Errorf("failed to get article: %w", err)
-	}
+// func (u *articleUsecase) UpdateArticle(ctx context.Context, articleDto *dto.ArticleDto, id int) error {
+// 	// Check if article exists
+// 	existingArticle, err := u.articleRepo.GetArticleByID(ctx, id)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to get article: %w", err)
+// 	}
 
-	// Update article fields
-	existingArticle.Title = articleDto.Title
-	existingArticle.Content = articleDto.Content
-	existingArticle.Source = articleDto.Source
-	existingArticle.IDTopic = articleDto.IDTopic
+// 	// Update article fields
+// 	existingArticle.Title = articleDto.Title
+// 	existingArticle.Content = articleDto.Content
+// 	existingArticle.Source = articleDto.Source
+// 	existingArticle.IDTopic = articleDto.IDTopic
 
-	// Save updates
-	err = u.articleRepo.UpdateArticle(ctx, existingArticle)
-	if err != nil {
-		return fmt.Errorf("failed to update article: %w", err)
-	}
+// 	// Save updates
+// 	err = u.articleRepo.UpdateArticle(ctx, existingArticle)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to update article: %w", err)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 func (u *articleUsecase) DeleteArticle(ctx context.Context, id int) error {
 	err := u.articleRepo.DeleteArticle(ctx, id)

@@ -12,9 +12,8 @@ import (
 
 type ArticleControllerImpl struct {
 	articleUsecase usecase.ArticleUsecase
-	RouterGroup *gin.RouterGroup
+	RouterGroup    *gin.RouterGroup
 }
-
 
 func (ac *ArticleControllerImpl) SearchArticleByTitle(c *gin.Context) {
 	var searchReq dto.ArticleSearchRequest
@@ -57,9 +56,9 @@ func (ac *ArticleControllerImpl) SearchArticleByTitle(c *gin.Context) {
 
 	// Prepare response
 	response := dto.ArticleSearchResponse{
-		Found:    true,
-		Article:  articles[0],
-		Message:  "Article found",
+		Found:   true,
+		Article: articles[0],
+		Message: "Article found",
 	}
 
 	// If there are more than one result, include them as suggestions
@@ -96,17 +95,17 @@ func (ac *ArticleControllerImpl) GenerateArticle(c *gin.Context) {
 	if err != nil {
 		statusCode := http.StatusInternalServerError
 		errorMsg := err.Error()
-		
+
 		// Check for specific error messages to provide appropriate status codes
-		if errorMsg == fmt.Sprintf("topic with ID %d not found in database", input.TopicID) || 
-		   errorMsg == fmt.Sprintf("topic with ID %d does not exist", input.TopicID) ||
-		   errorMsg == fmt.Sprintf("topic with ID %d not found", input.TopicID) {
+		if errorMsg == fmt.Sprintf("topic with ID %d not found in database", input.TopicID) ||
+			errorMsg == fmt.Sprintf("topic with ID %d does not exist", input.TopicID) ||
+			errorMsg == fmt.Sprintf("topic with ID %d not found", input.TopicID) {
 			statusCode = http.StatusNotFound
 		}
 
 		// Log the detailed error
 		fmt.Printf("Error generating articles for topic ID %d: %v\n", input.TopicID, errorMsg)
-		
+
 		c.AbortWithStatusJSON(statusCode, gin.H{
 			"status":  statusCode,
 			"message": http.StatusText(statusCode),
@@ -205,34 +204,34 @@ func (ac *ArticleControllerImpl) GetArticleByID(c *gin.Context) {
 // 	})
 // }
 
-func (ac *ArticleControllerImpl) UpdateArticle(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
-		return
-	}
+// func (ac *ArticleControllerImpl) UpdateArticle(c *gin.Context) {
+// 	idStr := c.Param("id")
+// 	id, err := strconv.Atoi(idStr)
+// 	if err != nil {
+// 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
+// 		return
+// 	}
 
-	var updateDTO dto.ArticleDto
-	if err := c.ShouldBindJSON(&updateDTO); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+// 	var updateDTO dto.ArticleDto
+// 	if err := c.ShouldBindJSON(&updateDTO); err != nil {
+// 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+// 		return
+// 	}
 
-	err = ac.articleUsecase.UpdateArticle(c.Request.Context(), &updateDTO, id)
-	if err != nil {
-		if err.Error() == fmt.Sprintf("article with ID %d not found", id) {
-			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
+// 	err = ac.articleUsecase.UpdateArticle(c.Request.Context(), &updateDTO, id)
+// 	if err != nil {
+// 		if err.Error() == fmt.Sprintf("article with ID %d not found", id) {
+// 			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err.Error()})
+// 			return
+// 		}
+// 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		return
+// 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Article update successful",
-	})
-}
+// 	c.JSON(http.StatusOK, gin.H{
+// 		"message": "Article update successful",
+// 	})
+// }
 
 func (ac *ArticleControllerImpl) DeleteArticle(c *gin.Context) {
 	idStr := c.Param("id")
@@ -257,17 +256,17 @@ func (ac *ArticleControllerImpl) DeleteArticle(c *gin.Context) {
 	})
 }
 
-func (ac *ArticleControllerImpl) Route(){
+func (ac *ArticleControllerImpl) Route() {
 	ac.RouterGroup.GET("/articles", ac.GetAllArticles)
 	ac.RouterGroup.GET("/articles/:id", ac.GetArticleByID)
 	ac.RouterGroup.POST("/articles/generate", ac.GenerateArticle)
-	ac.RouterGroup.PUT("/articles/:id", ac.UpdateArticle)
+	//ac.RouterGroup.PUT("/articles/:id", ac.UpdateArticle)
 	ac.RouterGroup.DELETE("/articles/:id", ac.DeleteArticle)
 	ac.RouterGroup.POST("/articles/search", ac.SearchArticleByTitle)
 }
 
 func NewArticleController(au usecase.ArticleUsecase, rg *gin.RouterGroup) *ArticleControllerImpl {
 	return &ArticleControllerImpl{
-		articleUsecase: au, 
-		RouterGroup: rg}
+		articleUsecase: au,
+		RouterGroup:    rg}
 }

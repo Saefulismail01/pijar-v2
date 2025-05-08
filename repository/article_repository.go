@@ -19,7 +19,7 @@ type ArticleRepository interface {
 	GetArticleByID(ctx context.Context, id int) (*model.Article, error)
 	GetArticleByTitle(ctx context.Context, title string) (*model.Article, error)
 	SearchArticlesByTitle(ctx context.Context, title string) ([]model.Article, error)
-	UpdateArticle(ctx context.Context, article *model.Article) error
+	//UpdateArticle(ctx context.Context, article *model.Article) error
 	DeleteArticle(ctx context.Context, id int) error
 	BeginTx(ctx context.Context) (*sql.Tx, error)
 	CommitTx(tx *sql.Tx) error
@@ -44,10 +44,10 @@ func (r *articleRepository) GenerateArticle(ctx context.Context, tx *sql.Tx, top
 	var preference string
 	var userID int
 	query := `SELECT preference, user_id FROM topics WHERE id = $1`
-	
+
 	// Log the query being executed
 	fmt.Printf("Executing query: %s with topicID: %d\n", query, topicID)
-	
+
 	err := r.db.QueryRowContext(ctx, query, topicID).Scan(&preference, &userID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -55,7 +55,7 @@ func (r *articleRepository) GenerateArticle(ctx context.Context, tx *sql.Tx, top
 		}
 		return nil, fmt.Errorf("database error when getting topic %d: %w", topicID, err)
 	}
-	
+
 	// Log successful retrieval
 	fmt.Printf("Successfully retrieved topic ID %d - Preference: %s, UserID: %d\n", topicID, preference, userID)
 
@@ -65,7 +65,7 @@ func (r *articleRepository) GenerateArticle(ctx context.Context, tx *sql.Tx, top
 		// If we can't get the gin context, create a new one
 		ginCtx = &gin.Context{}
 	}
-	
+
 	// Set topic_id and user_id in the context
 	ginCtx.Set("topic_id", topicID)
 	ginCtx.Set("user_id", userID)
@@ -237,7 +237,6 @@ func (r *articleRepository) GetArticleByTitle(ctx context.Context, title string)
 	return &article, nil
 }
 
-
 func (r *articleRepository) SearchArticlesByTitle(ctx context.Context, title string) ([]model.Article, error) {
 	query := `
 		SELECT id, title, content, source, topic_id, created_at 
@@ -276,36 +275,35 @@ func (r *articleRepository) SearchArticlesByTitle(ctx context.Context, title str
 	return articles, nil
 }
 
+// func (r *articleRepository) UpdateArticle(ctx context.Context, article *model.Article) error {
+// 	query := `
+// 		UPDATE articles
+// 		SET title = $1, content = $2, source = $3, topic_id = $4, updated_at = $5
+// 		WHERE id = $6`
 
-func (r *articleRepository) UpdateArticle(ctx context.Context, article *model.Article) error {
-	query := `
-		UPDATE articles 
-		SET title = $1, content = $2, source = $3, topic_id = $4, updated_at = $5 
-		WHERE id = $6`
+// 	result, err := r.db.ExecContext(ctx, query,
+// 		article.Title,
+// 		article.Content,
+// 		article.Source,
+// 		article.IDTopic,
+// 		time.Now(),
+// 		article.ID,
+// 	)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to update article: %w", err)
+// 	}
 
-	result, err := r.db.ExecContext(ctx, query,
-		article.Title,
-		article.Content,
-		article.Source,
-		article.IDTopic,
-		time.Now(),
-		article.ID,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to update article: %w", err)
-	}
+// 	rowsAffected, err := result.RowsAffected()
+// 	if err != nil {
+// 		return fmt.Errorf("failed to get rows affected: %w", err)
+// 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
+// 	if rowsAffected == 0 {
+// 		return errors.New("article not found")
+// 	}
 
-	if rowsAffected == 0 {
-		return errors.New("article not found")
-	}
-
-	return nil
-}
+// 	return nil
+// }
 
 func (r *articleRepository) DeleteArticle(ctx context.Context, id int) error {
 	query := `DELETE FROM articles WHERE id = $1`

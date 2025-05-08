@@ -1,6 +1,11 @@
 package controller
 
 import (
+	"konsep_project/middleware"
+	"konsep_project/model"
+	"konsep_project/repository"
+	"konsep_project/usecase"
+	"konsep_project/utils/service"
 	"net/http"
 	"pijar/middleware"
 	"pijar/model"
@@ -30,18 +35,6 @@ func NewUserController(rg *gin.RouterGroup, userUsecase *usecase.UserUsecase, us
 		UserUsecase:    userUsecase,
 	}
 }
-
-// func (uc *UserController) Route() {
-// 	// uc.rg.POST("/register", uc.CreateUserController)
-// 	// uc.rg.POST("/login", uc.Login)
-
-// 	// hanya admin
-// 	uc.rg.GET("/users", uc.authMiddleware.RequireToken("admin"), uc.GetAllUsersController)
-// 	uc.rg.GET("/users/:id", uc.authMiddleware.RequireToken("admin"), uc.GetUserByIDController)
-// 	uc.rg.GET("/users/email/:email", uc.authMiddleware.RequireToken("admin"), uc.GetUserByEmail)
-// 	uc.rg.PUT("/users", uc.authMiddleware.RequireToken("admin"), uc.UpdateUserController)
-// 	uc.rg.DELETE("/users/:id", uc.authMiddleware.RequireToken("admin"), uc.DeleteUserController)
-// }
 
 func (uc *UserController) CreateUserController(c *gin.Context) {
 	var userInput model.Users

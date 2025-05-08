@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"pijar/model"
+	"pijar/model/dto"
 	"slices"
 	"time"
 
@@ -16,7 +17,7 @@ type DailyGoalRepository interface {
 	CreateGoal(ctx context.Context, goal *model.UserGoal, articlesToRead []int64) (model.UserGoal, error)
 	GetGoalByID(ctx context.Context, id int, userID int) (model.UserGoal, error)
 	GetGoalsByUserID(ctx context.Context, userID int) ([]model.UserGoal, error)
-	GetGoalProgress(ctx context.Context, goalID int, userID int) ([]model.ArticleProgress, error)
+	GetGoalProgress(ctx context.Context, goalID int, userID int) ([]dto.ArticleProgress, error)
 	UpdateGoal(ctx context.Context, goal *model.UserGoal, articlesToRead []int64, userID int) (model.UserGoal, error)
 	CompleteArticleProgress(ctx context.Context, goalID int, articleID int64, completed bool) error
 	CountCompletedProgress(ctx context.Context, goalID int, userID int) (int, error)
@@ -397,7 +398,7 @@ func (r *dailyGoalsRepository) CountCompletedProgress(ctx context.Context, goalI
 }
 
 // konversi pq.Int64Array ke []int
-func (r *dailyGoalsRepository) GetGoalProgress(ctx context.Context, goalID int, userID int) ([]model.ArticleProgress, error) {
+func (r *dailyGoalsRepository) GetGoalProgress(ctx context.Context, goalID int, userID int) ([]dto.ArticleProgress, error) {
 	query := `
         SELECT 
             COALESCE(p.id_article, article_id) as id_article,
@@ -417,9 +418,9 @@ func (r *dailyGoalsRepository) GetGoalProgress(ctx context.Context, goalID int, 
 	}
 	defer rows.Close()
 
-	var progress []model.ArticleProgress
+	var progress []dto.ArticleProgress
 	for rows.Next() {
-		var p model.ArticleProgress
+		var p dto.ArticleProgress
 		var dateCompleted sql.NullTime
 
 		if err := rows.Scan(

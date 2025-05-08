@@ -21,5 +21,5 @@ type GoalProgressResponse struct {
 
 type GoalProgressInfo struct {
 	Goal     model.UserGoal
-	Progress []model.ArticleProgress
+	Progress []ArticleProgress
 }
