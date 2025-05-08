@@ -138,6 +138,7 @@ func (ac *ArticleControllerImpl) GenerateArticle(c *gin.Context) {
 }
 
 func (ac *ArticleControllerImpl) GetAllArticles(c *gin.Context) {
+<<<<<<< HEAD
 	// Get query parameters
 	page, _ := strconv.Atoi(c.Query("page"))
 	if page == 0 {
@@ -164,6 +165,12 @@ func (ac *ArticleControllerImpl) GetAllArticlesWithoutPagination(c *gin.Context)
 	// Get all articles without pagination
 	articles, err := ac.articleUsecase.GetAllArticlesWithoutPagination(c.Request.Context())
 	if err != nil {
+=======
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+
+	response, err := ac.articleUsecase.GetAllArticles(c.Request.Context(), page)
+	if err != nil {
+>>>>>>> 95e5e67 (feat(article): penambahan pagination atau halaman)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
@@ -171,6 +178,25 @@ func (ac *ArticleControllerImpl) GetAllArticlesWithoutPagination(c *gin.Context)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
+<<<<<<< HEAD
+=======
+		"message":    "Get all articles successful",
+		"data":       response.Articles,
+		"pagination": response.Pagination,
+	})
+}
+
+func (ac *ArticleControllerImpl) GetAllArticlesWithoutPagination(c *gin.Context) {
+	articles, err := ac.articleUsecase.GetAllArticlesWithoutPagination(c.Request.Context())
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+>>>>>>> 95e5e67 (feat(article): penambahan pagination atau halaman)
 		"message": "Get all articles without pagination successful",
 		"data":    articles,
 	})
@@ -295,3 +321,22 @@ func (ac *ArticleControllerImpl) DeleteArticle(c *gin.Context) {
 		"message": "Article deletion successful",
 	})
 }
+<<<<<<< HEAD
+=======
+
+func (ac *ArticleControllerImpl) Route() {
+	ac.RouterGroup.GET("/articles", ac.GetAllArticles)
+	ac.RouterGroup.GET("/articles/all", ac.GetAllArticlesWithoutPagination)
+	ac.RouterGroup.GET("/articles/:id", ac.GetArticleByID)
+	ac.RouterGroup.POST("/articles/generate", ac.GenerateArticle)
+	//ac.RouterGroup.PUT("/articles/:id", ac.UpdateArticle)
+	ac.RouterGroup.DELETE("/articles/:id", ac.DeleteArticle)
+	ac.RouterGroup.POST("/articles/search", ac.SearchArticleByTitle)
+}
+
+func NewArticleController(au usecase.ArticleUsecase, rg *gin.RouterGroup) *ArticleControllerImpl {
+	return &ArticleControllerImpl{
+		articleUsecase: au,
+		RouterGroup:    rg}
+}
+>>>>>>> 95e5e67 (feat(article): penambahan pagination atau halaman)
