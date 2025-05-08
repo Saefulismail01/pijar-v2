@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/swaggo/files"
+	"github.com/swaggo/gin-swagger"
 )
 
 type Server struct {
