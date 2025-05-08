@@ -13,7 +13,8 @@ import (
 type ArticleUsecase interface {
 	CreateArticle(c *gin.Context, preferences []string) error
 	GenerateArticle(ctx context.Context, topicID int) ([]model.Article, error)
-	GetAllArticles(ctx context.Context) ([]model.Article, error)
+	GetAllArticles(ctx context.Context, page int) (*model.ArticleResponse, error)
+	GetAllArticlesWithoutPagination(ctx context.Context) ([]model.Article, error)
 	GetArticleByID(ctx context.Context, id int) (*model.Article, error)
 	// GetArticleByTitle(ctx context.Context, title string) (*model.Article, error)
 	SearchArticlesByTitle(ctx context.Context, title string) ([]model.Article, error)
@@ -150,10 +151,40 @@ func (u *articleUsecase) GenerateArticle(ctx context.Context, topicID int) ([]mo
 	return articles, nil
 }
 
-func (u *articleUsecase) GetAllArticles(ctx context.Context) ([]model.Article, error) {
-	articles, err := u.articleRepo.GetAllArticles(ctx)
+func (u *articleUsecase) GetAllArticles(ctx context.Context, page int) (*model.ArticleResponse, error) {
+	const limit = 3 // limit tetap 3 item per halaman
+
+	if page < 1 {
+		page = 1
+	}
+
+	articles, totalItems, err := u.articleRepo.GetPaginatedArticles(ctx, page, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get articles: %w", err)
+	}
+
+	totalPages := int(totalItems) / limit
+	if int(totalItems)%limit != 0 {
+		totalPages++
+	}
+
+	response := &model.ArticleResponse{
+		Articles: articles,
+		Pagination: model.Pagination{
+			CurrentPage: page,
+			TotalPages:  totalPages,
+			TotalItems:  totalItems,
+			Limit:       limit,
+		},
+	}
+
+	return response, nil
+}
+
+func (u *articleUsecase) GetAllArticlesWithoutPagination(ctx context.Context) ([]model.Article, error) {
+	articles, err := u.articleRepo.GetAllArticles(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all articles: %w", err)
 	}
 	return articles, nil
 }
