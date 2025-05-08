@@ -2,9 +2,9 @@ package usecase
 
 import (
 	"fmt"
-	"konsep_project/model"
-	"konsep_project/repository"
-	"konsep_project/utils/service"
+	"pijar/model"
+	"pijar/repository"
+	"pijar/utils/service"
 	"log"
 	"strconv"
 	"time"

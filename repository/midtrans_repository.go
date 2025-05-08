@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"konsep_project/model"
+	"pijar/model"
 	"time"
 )
 
