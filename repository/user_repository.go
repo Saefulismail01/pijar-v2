@@ -29,6 +29,9 @@ type UserRepoInterface interface {
 	GetUserByEmail(email string) (model.Users, error)
 }
 
+// Ensure *UserRepo implements UserRepoInterface
+var _ UserRepoInterface = (*UserRepo)(nil)
+
 func (r *UserRepo) IsEmailExists(email string) (bool, error) {
 	var exists bool
 	query := `SELECT EXISTS(SELECT 1 FROM users WHERE email = $1);`

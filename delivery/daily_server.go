@@ -1,5 +1,5 @@
 package delivery
-
+/*
 import (
 	"context"
 	"database/sql"
@@ -20,53 +20,38 @@ import (
 )
 
 type Server struct {
+	coachUC   usecase.SessionUsecase
+	journalUC usecase.JournalUsecase
+	topicUC   usecase.TopicUsecase
+	articleUC usecase.ArticleUsecase
+	dailyGoalUC usecase.DailyGoalUseCase
 	engine      *gin.Engine
 	server      *http.Server
 	db          *sql.DB
 	host        string
-	port        string
-	dailyGoalUC usecase.DailyGoalUseCase
+//	port        string
 }
 
-func NewServer() *Server {
-	cfg, err := config.NewConfig()
-	if err != nil {
-		panic(fmt.Errorf("failed to read config: %v", err))
-	}
-
-	db, err := config.ConnectDB(cfg.DBConfig)
-	if err != nil {
-		panic(fmt.Errorf("failed to connect db: %v", err))
-	}
-
-	dailyGoalRepo := repository.NewDailyGoalsRepository(db)
-	dailyGoalUC := usecase.NewGoalUseCase(dailyGoalRepo)
-
-	host := fmt.Sprintf("%s:%s", cfg.APIHost, cfg.APIPort)
-
-	engine := gin.New()
-	engine.Use(gin.Recovery())
-
-	return &Server{
-		engine:      engine,
-		db:          db,
-		host:        host,
-		dailyGoalUC: dailyGoalUC,
-	}
-}
 
 func (s *Server) initRoute() {
-	// add swagger route in /pijar
-	pijarGroup := s.engine.Group("/pijar")
-	{
-		pijarGroup.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-		dailyGoalController := controller.NewGoalController(
-			s.dailyGoalUC,
-			pijarGroup, // Gunakan group yang sama
-		)
-		dailyGoalController.Route()
-	}
+	rg := s.engine.Group("/pijar")
+
+	// Feature Coach
+	controller.NewSessionHandler(s.coachUC, rg).Route()
+
+	// feature journal
+	controller.NewJournalController(s.journalUC, rg).Route()
+
+	// feature topic
+	controller.NewTopicController(s.topicUC, rg).Route()
+
+	// feature articles
+	controller.NewArticleController(s.articleUC, rg).Route()
+
+	// feature daily goals
+	controller.NewGoalController(s.dailyGoalUC, rg).Route()
+
 }
 
 func (s *Server) Run() {
@@ -109,3 +94,35 @@ func (s *Server) Run() {
 
 	fmt.Println("Server gracefully stopped 󱠡")
 }
+
+
+
+
+func NewServer() *Server {
+	cfg, err := config.NewConfig()
+	if err != nil {
+		panic(fmt.Errorf("failed to read config: %v", err))
+	}
+
+	db, err := config.ConnectDB(cfg.DBConfig)
+	if err != nil {
+		panic(fmt.Errorf("failed to connect db: %v", err))
+	}
+
+	dailyGoalRepo := repository.NewDailyGoalsRepository(db)
+	dailyGoalUC := usecase.NewGoalUseCase(dailyGoalRepo)
+
+	host := fmt.Sprintf("%s:%s", cfg.APIHost, cfg.APIPort)
+
+	engine := gin.New()
+	engine.Use(gin.Recovery())
+
+	return &Server{
+		engine:      engine,
+		db:          db,
+		host:        host,
+		dailyGoalUC: dailyGoalUC,
+	}
+}
+
+*/

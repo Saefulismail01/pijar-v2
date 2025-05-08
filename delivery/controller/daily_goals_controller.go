@@ -19,7 +19,9 @@ type dailyGoalsController struct {
 }
 
 func NewGoalController(uc usecase.DailyGoalUseCase, rg *gin.RouterGroup) *dailyGoalsController {
-	return &dailyGoalsController{uc: uc, rg: rg}
+	return &dailyGoalsController{
+		uc: uc, 
+		rg: rg}
 }
 
 func (c *dailyGoalsController) Route() {

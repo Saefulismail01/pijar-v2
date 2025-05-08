@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"pijar/model"
 	"pijar/usecase"
-	"pijar/utils"
 	"pijar/utils/service"
 
 	"github.com/gin-gonic/gin"
@@ -47,7 +46,7 @@ func (a *AuthController) Register(c *gin.Context) {
 	}
 
 	// Hash password
-	hashedPassword, err := utils.HashPassword(input.Password)
+	hashedPassword, err := service.HashPassword(input.Password)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "gagal mengenkripsi password"})
 		return

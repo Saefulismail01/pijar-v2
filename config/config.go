@@ -41,7 +41,7 @@ func (c *Config) readConfig() error {
 	}
 
 	c.APIConfig = APIConfig{
-		ApiPort: "8080",
+		ApiPort: os.Getenv("API_PORT"),
 	}
 
 	if c.Host == "" || c.Port == "" || c.User == "" || c.Password == "" || c.DBName == "" || c.ApiPort == "" {

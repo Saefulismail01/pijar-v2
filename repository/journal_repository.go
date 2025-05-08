@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"pijar/model"
+	"time"
 )
 
 type JournalRepository interface {
@@ -37,18 +38,29 @@ func (r *journalRepository) Create(ctx context.Context, journal *model.Journal) 
 		return fmt.Errorf("gagal memeriksa keberadaan user: %w", err)
 	}
 
-	query = `INSERT INTO journals (user_id, judul, isi, perasaan) VALUES ($1, $2, $3, $4) RETURNING id`
+	// Set created_at dan updated_at sama saat pertama kali dibuat
+	now := time.Now()
+	journal.CreatedAt = now
+	journal.UpdatedAt = now
+
+	query = `INSERT INTO journals (user_id, judul, isi, perasaan, created_at, updated_at) 
+	        VALUES ($1, $2, $3, $4, $5, $6) 
+	        RETURNING id, created_at, updated_at`
 	return r.db.QueryRowContext(ctx, query,
 		journal.UserID,
 		journal.Judul,
 		journal.Isi,
 		journal.Perasaan,
-	).Scan(&journal.ID)
+		journal.CreatedAt,
+		journal.UpdatedAt,
+	).Scan(&journal.ID, &journal.CreatedAt, &journal.UpdatedAt)
 }
 
 func (r *journalRepository) FindAll(ctx context.Context, userID int) ([]model.Journal, error) {
 	var journals []model.Journal
-	query := `SELECT id, user_id, judul, isi, perasaan FROM journals WHERE user_id = $1`
+	query := `SELECT id, user_id, judul, isi, perasaan, created_at, updated_at 
+	         FROM journals 
+	         WHERE user_id = $1`
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
@@ -58,7 +70,15 @@ func (r *journalRepository) FindAll(ctx context.Context, userID int) ([]model.Jo
 
 	for rows.Next() {
 		var journal model.Journal
-		if err := rows.Scan(&journal.ID, &journal.UserID, &journal.Judul, &journal.Isi, &journal.Perasaan); err != nil {
+		if err := rows.Scan(
+			&journal.ID,
+			&journal.UserID,
+			&journal.Judul,
+			&journal.Isi,
+			&journal.Perasaan,
+			&journal.CreatedAt,
+			&journal.UpdatedAt,
+		); err != nil {
 			return nil, err
 		}
 		journals = append(journals, journal)
@@ -69,10 +89,20 @@ func (r *journalRepository) FindAll(ctx context.Context, userID int) ([]model.Jo
 
 func (r *journalRepository) FindByID(ctx context.Context, id int) (*model.Journal, error) {
 	var journal model.Journal
-	query := `SELECT id, user_id, judul, isi, perasaan FROM journals WHERE id = $1`
+	query := `SELECT id, user_id, judul, isi, perasaan, created_at, updated_at 
+	         FROM journals 
+	         WHERE id = $1`
 
 	row := r.db.QueryRowContext(ctx, query, id)
-	if err := row.Scan(&journal.ID, &journal.UserID, &journal.Judul, &journal.Isi, &journal.Perasaan); err != nil {
+	if err := row.Scan(
+		&journal.ID,
+		&journal.UserID,
+		&journal.Judul,
+		&journal.Isi,
+		&journal.Perasaan,
+		&journal.CreatedAt,
+		&journal.UpdatedAt,
+	); err != nil {
 		return nil, err
 	}
 
@@ -80,15 +110,21 @@ func (r *journalRepository) FindByID(ctx context.Context, id int) (*model.Journa
 }
 
 func (r *journalRepository) Update(ctx context.Context, journal *model.Journal) error {
-	query := `UPDATE journals SET judul = $1, isi = $2, perasaan = $3 WHERE id = $4`
+	// Set updated_at ke waktu sekarang
+	journal.UpdatedAt = time.Now()
 
-	_, err := r.db.ExecContext(ctx, query,
+	query := `UPDATE journals 
+	         SET judul = $1, isi = $2, perasaan = $3, updated_at = $4 
+	         WHERE id = $5
+	         RETURNING created_at, updated_at`
+
+	return r.db.QueryRowContext(ctx, query,
 		journal.Judul,
 		journal.Isi,
 		journal.Perasaan,
+		journal.UpdatedAt,
 		journal.ID,
-	)
-	return err
+	).Scan(&journal.CreatedAt, &journal.UpdatedAt)
 }
 
 func (r *journalRepository) Delete(ctx context.Context, id int) error {

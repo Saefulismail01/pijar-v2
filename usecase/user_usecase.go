@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"pijar/model"
 	"pijar/repository"
-	"pijar/utils"
+	"pijar/utils/service"
 )
 
 
 type UserUsecase struct {
-	UserRepo repository.UserRepo
+	UserRepo repository.UserRepoInterface
 }
 
-func NewUserUsecase(repo repository.UserRepo) *UserUsecase {
+func NewUserUsecase(repo repository.UserRepoInterface) *UserUsecase {
 	return &UserUsecase{
 		UserRepo: repo,
 	}
@@ -21,7 +21,7 @@ func NewUserUsecase(repo repository.UserRepo) *UserUsecase {
 
 func (u *UserUsecase) CreateUserUsecase(user model.Users) (model.Users, error) {
 	// Validasi email format
-	if !utils.IsValidEmail(user.Email) {
+	if !service.IsValidEmail(user.Email) {
 		return model.Users{}, errors.New("invalid email format")
 	}
 

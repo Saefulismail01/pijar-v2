@@ -1,4 +1,4 @@
-package modelutil
+package model
 
 import (
 	"time"

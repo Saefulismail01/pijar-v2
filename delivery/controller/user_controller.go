@@ -1,11 +1,11 @@
 package controller
 
 import (
-	"konsep_project/middleware"
-	"konsep_project/model"
-	"konsep_project/repository"
-	"konsep_project/usecase"
-	"konsep_project/utils/service"
+	"pijar/middleware"
+	"pijar/model"
+	"pijar/repository"
+	"pijar/usecase"
+	"pijar/utils/service"
 	"net/http"
 	"strconv"
 
@@ -24,6 +24,19 @@ type UserController struct {
 	
 }
 
+// Route sets up all routes for the user controller
+func (uc *UserController) Route() {
+	// User routes
+	uc.rg.POST("/users", uc.CreateUserController)
+	uc.rg.GET("/users", uc.GetAllUsersController)
+	uc.rg.GET("/users/:id", uc.GetUserByIDController)
+	uc.rg.PUT("/users/:id", uc.UpdateUserController)
+	uc.rg.DELETE("/users/:id", uc.DeleteUserController)
+	uc.rg.GET("/users/email/:email", uc.GetUserByEmail)
+	
+	// Add route for completing article progress (based on memory)
+	uc.rg.POST("/goals/complete-article", uc.authMiddleware.RequireToken("USER"))
+}
 
 func NewUserController(rg *gin.RouterGroup, userUsecase *usecase.UserUsecase, userRepo repository.UserRepoInterface, jwtService service.JwtService, authMiddleware *middleware.AuthMiddleware) *UserController{
 	return &UserController{
@@ -35,17 +48,6 @@ func NewUserController(rg *gin.RouterGroup, userUsecase *usecase.UserUsecase, us
 	}
 }
 
-// func (uc *UserController) Route() {
-// 	// uc.rg.POST("/register", uc.CreateUserController)
-// 	// uc.rg.POST("/login", uc.Login)
-
-// 	// hanya admin
-// 	uc.rg.GET("/users", uc.authMiddleware.RequireToken("admin"), uc.GetAllUsersController)
-// 	uc.rg.GET("/users/:id", uc.authMiddleware.RequireToken("admin"), uc.GetUserByIDController)
-// 	uc.rg.GET("/users/email/:email", uc.authMiddleware.RequireToken("admin"), uc.GetUserByEmail)
-// 	uc.rg.PUT("/users", uc.authMiddleware.RequireToken("admin"), uc.UpdateUserController)
-// 	uc.rg.DELETE("/users/:id", uc.authMiddleware.RequireToken("admin"), uc.DeleteUserController)
-// }
 
 func (uc *UserController) CreateUserController(c *gin.Context) {
 	var userInput model.Users
