@@ -1,13 +1,13 @@
 package delivery
 
 import (
-	"context"
+	// "context"
 	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
+	// "os/signal"
+	// "syscall"
 	"time"
 	"pijar/config"
 	"pijar/delivery/controller"
@@ -68,43 +68,48 @@ func (s *Server) initRoute() {
 func (s *Server) Run() {
 
 	s.initRoute()
-
-	s.server = &http.Server{
-		Addr:    s.host,
-		Handler: s.engine,
+	if err := s.engine.Run(s.host); err != nil {
+		panic(err)
 	}
 
-	// channel for signal interrupt
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	// s.initRoute()
 
-	// run server in goroutine
-	go func() {
-		fmt.Printf("Server running on %s\n", s.host)
-		if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			panic(fmt.Errorf("failed to start server: %v", err))
-		}
-	}()
+	// s.server = &http.Server{
+	// 	Addr:    s.host,
+	// 	Handler: s.engine,
+	// }
 
-	// blocking main goroutine until signal received
-	<-quit
-	fmt.Println("\nShutting down server...")
+	// // channel for signal interrupt
+	// quit := make(chan os.Signal, 1)
+	// signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
-	// timeout 5 seconds for shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	// // run server in goroutine
+	// go func() {
+	// 	fmt.Printf("Server running on %s\n", s.host)
+	// 	if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	// 		panic(fmt.Errorf("failed to start server: %v", err))
+	// 	}
+	// }()
 
-	// shutdown server
-	if err := s.server.Shutdown(ctx); err != nil {
-		fmt.Printf("Server forced to shutdown: %v\n", err)
-	}
+	// // blocking main goroutine until signal received
+	// <-quit
+	// fmt.Println("\nShutting down server...")
 
-	// close db connection
-	if err := s.db.Close(); err != nil {
-		fmt.Printf("Error closing database: %v\n", err)
-	}
+	// // timeout 5 seconds for shutdown
+	// ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// defer cancel()
 
-	fmt.Println("Server gracefully stopped 󱠡")
+	// // shutdown server
+	// if err := s.server.Shutdown(ctx); err != nil {
+	// 	fmt.Printf("Server forced to shutdown: %v\n", err)
+	// }
+
+	// // close db connection
+	// if err := s.db.Close(); err != nil {
+	// 	fmt.Printf("Error closing database: %v\n", err)
+	// }
+
+	// fmt.Println("Server gracefully stopped 󱠡")
 
 }
 
