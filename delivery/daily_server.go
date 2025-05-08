@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/swaggo/files"
+	"github.com/swaggo/gin-swagger"
 )
 
 type Server struct {
@@ -54,12 +56,17 @@ func NewServer() *Server {
 }
 
 func (s *Server) initRoute() {
-	// initialize Daily Goals Controller
-	dailyGoalController := controller.NewGoalController(
-		s.dailyGoalUC,
-		s.engine.Group("/pijar"),
-	)
-	dailyGoalController.Route()
+	// add swagger route in /pijar
+	pijarGroup := s.engine.Group("/pijar")
+	{
+		pijarGroup.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+		dailyGoalController := controller.NewGoalController(
+			s.dailyGoalUC,
+			pijarGroup, // Gunakan group yang sama
+		)
+		dailyGoalController.Route()
+	}
 }
 
 func (s *Server) Run() {
