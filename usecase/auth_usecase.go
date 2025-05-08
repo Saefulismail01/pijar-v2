@@ -6,7 +6,6 @@ import (
 	"log"
 	"pijar/model"
 	"pijar/repository"
-	"pijar/utils"
 	"pijar/utils/service"
 )
 
@@ -31,7 +30,7 @@ func (u *AuthUsecase) Login(email, password string) (model.AuthResponse, error) 
 		return model.AuthResponse{}, errors.New("failed to retrieve user")
 	}
 
-	if !utils.CheckPasswordHash(password, user.PasswordHash) {
+	if !service.CheckPasswordHash(password, user.PasswordHash) {
 		log.Println("Password mismatch for email:", email)
 		return model.AuthResponse{}, errors.New("incorrect password")
 	}
@@ -58,7 +57,7 @@ func (u *AuthUsecase) Register(user model.Users, plainPassword string) (map[stri
 	}
 
 	// Hash password
-	hashedPassword, err := utils.HashPassword(plainPassword)
+	hashedPassword, err := service.HashPassword(plainPassword)
 	if err != nil {
 		return nil, err
 	}

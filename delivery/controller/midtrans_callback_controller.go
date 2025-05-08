@@ -1,8 +1,8 @@
 package controller
 
 import (
-	"konsep_project/model"
-	"konsep_project/usecase"
+	"pijar/model"
+	"pijar/usecase"
 	"log"
 	"net/http"
 

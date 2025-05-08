@@ -2,9 +2,9 @@ package usecase
 
 import (
 	"fmt"
-	"konsep_project/model"
-	"konsep_project/repository"
-	"konsep_project/utils/service"
+	"pijar/model"
+	"pijar/repository"
+	"pijar/utils/service"
 	"log"
 	"strconv"
 	"time"
@@ -48,6 +48,7 @@ func (p *paymentUsecase) CreatePayment(req model.PaymentRequest) (model.Transact
 	// Generate order ID
 	orderID := p.midtransService.GenerateOrderID()
 
+	
 	// Buat item untuk Midtrans
 	items := []model.Item{
 		{
