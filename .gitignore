@@ -1,5 +1,4 @@
 .env
 go.mod
 go.sum
-/delivery/server.go
-API_DOCUMENTATION.md
+

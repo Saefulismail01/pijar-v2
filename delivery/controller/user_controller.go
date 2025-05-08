@@ -1,31 +1,27 @@
 package controller
 
 import (
-	"konsep_project/middleware"
-	"konsep_project/model"
-	"konsep_project/repository"
-	"konsep_project/usecase"
-	"konsep_project/utils/service"
 	"net/http"
+	"pijar/middleware"
+	"pijar/model"
+	"pijar/repository"
+	"pijar/usecase"
+	"pijar/utils/service"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
 
-
-
 type UserController struct {
-	UserUsecase *usecase.UserUsecase
+	UserUsecase    *usecase.UserUsecase
 	rg             *gin.RouterGroup
 	userRepo       repository.UserRepoInterface
 	jwtService     service.JwtService
 	authMiddleware *middleware.AuthMiddleware
-	
 }
 
-
-func NewUserController(rg *gin.RouterGroup, userUsecase *usecase.UserUsecase, userRepo repository.UserRepoInterface, jwtService service.JwtService, authMiddleware *middleware.AuthMiddleware) *UserController{
+func NewUserController(rg *gin.RouterGroup, userUsecase *usecase.UserUsecase, userRepo repository.UserRepoInterface, jwtService service.JwtService, authMiddleware *middleware.AuthMiddleware) *UserController {
 	return &UserController{
 		rg:             rg,
 		userRepo:       userRepo,
@@ -70,8 +66,6 @@ func (uc *UserController) CreateUserController(c *gin.Context) {
 	})
 }
 
-
-
 func (uc *UserController) GetAllUsersController(c *gin.Context) {
 	users, err := uc.UserUsecase.GetAllUsersUsecase()
 	if err != nil {
@@ -85,7 +79,6 @@ func (uc *UserController) GetAllUsersController(c *gin.Context) {
 		"data": users,
 	})
 }
-
 
 func (uc *UserController) GetUserByIDController(c *gin.Context) {
 	idParam := c.Param("id")
