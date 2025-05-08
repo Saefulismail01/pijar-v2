@@ -124,14 +124,34 @@ func (ac *ArticleControllerImpl) GenerateArticle(c *gin.Context) {
 }
 
 func (ac *ArticleControllerImpl) GetAllArticles(c *gin.Context) {
-	articles, err := ac.articleUsecase.GetAllArticles(c.Request.Context())
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+
+	response, err := ac.articleUsecase.GetAllArticles(c.Request.Context(), page)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Get all articles successful",
+		"message":    "Get all articles successful",
+		"data":       response.Articles,
+		"pagination": response.Pagination,
+	})
+}
+
+func (ac *ArticleControllerImpl) GetAllArticlesWithoutPagination(c *gin.Context) {
+	articles, err := ac.articleUsecase.GetAllArticlesWithoutPagination(c.Request.Context())
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Get all articles without pagination successful",
 		"data":    articles,
 	})
 }
@@ -258,6 +278,7 @@ func (ac *ArticleControllerImpl) DeleteArticle(c *gin.Context) {
 
 func (ac *ArticleControllerImpl) Route() {
 	ac.RouterGroup.GET("/articles", ac.GetAllArticles)
+	ac.RouterGroup.GET("/articles/all", ac.GetAllArticlesWithoutPagination)
 	ac.RouterGroup.GET("/articles/:id", ac.GetArticleByID)
 	ac.RouterGroup.POST("/articles/generate", ac.GenerateArticle)
 	//ac.RouterGroup.PUT("/articles/:id", ac.UpdateArticle)
