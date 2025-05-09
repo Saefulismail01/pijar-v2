@@ -1,10 +1,9 @@
 package middleware
 
 import (
-	"pijar/utils/service"
-
 	"log"
 	"net/http"
+	"pijar/utils/service"
 	"strings"
 
 	"github.com/gin-gonic/gin"

@@ -70,16 +70,11 @@ func (u *AuthUsecase) Register(user model.Users, plainPassword string) (map[stri
 		return nil, err
 	}
 
-	// Buat token langsung setelah register
-	token, err := u.jwtService.CreateToken(createdUser)
-	if err != nil {
-		return nil, err
-	}
+	log.Printf("User successfully registered!")
 
-	// Response
+	// Response - password will be automatically hidden due to json:"-" tag in the model
 	return map[string]interface{}{
 		"message": "Registration successful",
 		"user":    createdUser,
-		"token":   token,
 	}, nil
 }
