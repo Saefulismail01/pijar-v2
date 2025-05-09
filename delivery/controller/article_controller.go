@@ -139,6 +139,7 @@ func (ac *ArticleControllerImpl) GenerateArticle(c *gin.Context) {
 
 func (ac *ArticleControllerImpl) GetAllArticles(c *gin.Context) {
 <<<<<<< HEAD
+<<<<<<< HEAD
 	// Get query parameters
 	page, _ := strconv.Atoi(c.Query("page"))
 	if page == 0 {
@@ -171,6 +172,12 @@ func (ac *ArticleControllerImpl) GetAllArticlesWithoutPagination(c *gin.Context)
 	response, err := ac.articleUsecase.GetAllArticles(c.Request.Context(), page)
 	if err != nil {
 >>>>>>> 95e5e67 (feat(article): penambahan pagination atau halaman)
+=======
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+
+	response, err := ac.articleUsecase.GetAllArticles(c.Request.Context(), page)
+	if err != nil {
+>>>>>>> b1a2292 (feat (article): ketinggalan usecase)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
@@ -179,7 +186,10 @@ func (ac *ArticleControllerImpl) GetAllArticlesWithoutPagination(c *gin.Context)
 
 	c.JSON(http.StatusOK, gin.H{
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> b1a2292 (feat (article): ketinggalan usecase)
 		"message":    "Get all articles successful",
 		"data":       response.Articles,
 		"pagination": response.Pagination,
@@ -196,7 +206,10 @@ func (ac *ArticleControllerImpl) GetAllArticlesWithoutPagination(c *gin.Context)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
+<<<<<<< HEAD
 >>>>>>> 95e5e67 (feat(article): penambahan pagination atau halaman)
+=======
+>>>>>>> b1a2292 (feat (article): ketinggalan usecase)
 		"message": "Get all articles without pagination successful",
 		"data":    articles,
 	})
