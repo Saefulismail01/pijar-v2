@@ -28,7 +28,7 @@ type Server struct {
 	articleUC      usecase.ArticleUsecase
 	dailyGoalUC    usecase.DailyGoalUseCase
 	userRepo       repository.UserRepoInterface
-	userUsecase    *usecase.UserUsecase
+	userUsecase    usecase.UserUsecase
 	authUsecase    *usecase.AuthUsecase
 	paymentUsecase usecase.PaymentUsecase
 	jwtService     service.JwtService
@@ -43,10 +43,12 @@ func (s *Server) initRoute() {
 	rg := s.engine.Group("/pijar")
 
 	// Initialize controllers and setup routes
-	controller.NewUserController(rg, s.userUsecase, s.userRepo, s.jwtService, s.authMiddleware).Route()
+	controller.NewUserController(rg, s.userUsecase, s.jwtService, s.authMiddleware).Route()
+
 	controller.NewAuthController(rg, s.jwtService, s.authUsecase).Route()
-	// Payment controllers
+
 	controller.NewPaymentController(rg, s.paymentUsecase).Route()
+
 	controller.NewMidtransCallbackHandler(rg, s.paymentUsecase).Route()
 
 	// Feature Coach
@@ -130,7 +132,6 @@ func NewServer() *Server {
 	userRepo := repository.NewUserRepo(db)
 	productRepo := repository.NewProductRepository(db)
 	transactionRepo := repository.NewTransactionRepository(db)
-	sessionRepo := repository.NewSession(db)
 
 	// Initialize services
 	jwtService := service.NewJwtService("SECRETKU", "PIJAR-APP", time.Hour*2)
@@ -140,20 +141,16 @@ func NewServer() *Server {
 	// Initialize middleware
 	authMiddleware := middleware.NewAuthMiddleware(jwtService)
 
-	// Initialize usecases - pass the pointer to implement the interface correctly
+	// Initialize usecases
 	userUsecase := usecase.NewUserUsecase(userRepo)
 	authUsecase := usecase.NewAuthUsecase(userRepo, jwtService)
-	// Comment out payment usecase temporarily until we fix the interface issues
 	paymentUsecase := usecase.NewPaymentUsecase(midtransService, productRepo, transactionRepo)
 
-	// Get AI API key from environment
-	auApiKey := os.Getenv("AI_API")
-	if auApiKey == "" {
-		fmt.Println("Warning: AI_API environment variable is not set")
-	}
+	// Initialize session repository
+	sessionRepo := repository.NewSession(db)
 
 	// Initialize AI coach
-	deepseek := service.NewDeepSeekClient(auApiKey)
+	deepseek := service.NewDeepSeekClient(os.Getenv("AI_API"))
 	deepseek.SystemPrompt = "You are a professional mental health coach. Your role is to provide empathetic support and guidance. When users need help with decision-making, use the cost-benefit analysis framework to help them think through their options. Maintain a cheerful and supportive tone, but use emoticons sparingly. Keep your responses concise and focused. Avoid repeating yourself. Your goal is to help users gain clarity and make informed decisions about their mental well-being."
 	deepseek.Temperature = 0.7
 	deepseek.MaxTokens = 500

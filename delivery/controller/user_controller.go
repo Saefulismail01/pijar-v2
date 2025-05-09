@@ -1,37 +1,30 @@
 package controller
 
 import (
-	"pijar/middleware"
-	"pijar/model"
-	"pijar/repository"
-	"pijar/usecase"
-
-	//"konsep_project/utils"
 	"log"
 	"net/http"
+	"pijar/middleware"
+	"pijar/model"
+	"pijar/usecase"
 	"pijar/utils/service"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
-
-
 type UserController struct {
-	UserUsecase    *usecase.UserUsecase
+	UserUsecase    usecase.UserUsecase
 	rg             *gin.RouterGroup
-	userRepo       repository.UserRepoInterface
 	jwtService     service.JwtService
 	authMiddleware *middleware.AuthMiddleware
 }
 
-func NewUserController(rg *gin.RouterGroup, userUsecase *usecase.UserUsecase, userRepo repository.UserRepoInterface, jwtService service.JwtService, authMiddleware *middleware.AuthMiddleware) *UserController {
+func NewUserController(rg *gin.RouterGroup, userUsecase usecase.UserUsecase, jwtService service.JwtService, authMiddleware *middleware.AuthMiddleware) *UserController {
 	return &UserController{
+		UserUsecase:    userUsecase,
 		rg:             rg,
-		userRepo:       userRepo,
 		jwtService:     jwtService,
 		authMiddleware: authMiddleware,
-		UserUsecase:    userUsecase,
 	}
 }
 
@@ -44,12 +37,12 @@ func (uc *UserController) Route() {
 	adminProtected.PUT("/:id", uc.UpdateUserController)
 	adminProtected.DELETE("/:id", uc.DeleteUserController)
 	adminProtected.GET("/email/:email", uc.GetUserByEmail)
-	
+
 	// Endpoint untuk membuat user baru (admin only)
 	log.Println("Registering POST /users endpoint for creating new users")
 	adminProtected.POST("/", uc.CreateUserController)
 	log.Println("POST /users endpoint registered")
-	
+
 	// User profile routes - accessible by any authenticated user
 	userProfile := uc.rg.Group("/profile")
 	userProfile.Use(uc.authMiddleware.RequireToken("USER", "ADMIN")) // Both users and admins can access
@@ -167,7 +160,7 @@ func (uc *UserController) UpdateUserController(c *gin.Context) {
 	// Return the updated user data
 	c.JSON(http.StatusOK, gin.H{
 		"message": "User updated successfully",
-		"user": updatedUser,
+		"user":    updatedUser,
 	})
 }
 
@@ -190,7 +183,7 @@ func (uc *UserController) DeleteUserController(c *gin.Context) {
 func (uc *UserController) GetUserByEmail(c *gin.Context) {
 	email := c.Param("email")
 
-	user, err := uc.userRepo.GetUserByEmail(email)
+	user, err := uc.UserUsecase.GetUserByEmail(email)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
@@ -207,7 +200,7 @@ func (uc *UserController) GetOwnProfileController(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found in token"})
 		return
 	}
-	
+
 	userID, err := strconv.Atoi(userIDStr.(string))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID format"})
@@ -232,7 +225,7 @@ func (uc *UserController) UpdateOwnProfileController(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found in token"})
 		return
 	}
-	
+
 	userID, err := strconv.Atoi(userIDStr.(string))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID format"})
@@ -288,7 +281,7 @@ func (uc *UserController) UpdateOwnProfileController(c *gin.Context) {
 	// Return the updated user data
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Profile updated successfully",
-		"user": updatedUser,
+		"user":    updatedUser,
 	})
 }
 

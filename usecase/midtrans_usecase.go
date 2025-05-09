@@ -19,9 +19,9 @@ type PaymentUsecase interface {
 
 // paymentUsecase adalah implementasi dari PaymentUsecase
 type paymentUsecase struct {
-	midtransService  service.MidtransServiceInterface
-	productRepo      repository.ProductRepository
-	transactionRepo  repository.TransactionRepository
+	midtransService service.MidtransServiceInterface
+	productRepo     repository.ProductRepository
+	transactionRepo repository.TransactionRepository
 }
 
 // NewPaymentUsecase membuat instance baru dari PaymentUsecase
@@ -48,14 +48,13 @@ func (p *paymentUsecase) CreatePayment(req model.PaymentRequest) (model.Transact
 	// Generate order ID
 	orderID := p.midtransService.GenerateOrderID()
 
-	
 	// Buat item untuk Midtrans
 	items := []model.Item{
 		{
-			ID:                 strconv.Itoa(product.ID),
-			Name:               product.Name,
-			Price:              product.Price,
-			Quantity:           req.Quantity,
+			ID:                  strconv.Itoa(product.ID),
+			Name:                product.Name,
+			Price:               product.Price,
+			Quantity:            req.Quantity,
 			MonthlySubscription: 1, // Default 1 bulan
 		},
 	}
