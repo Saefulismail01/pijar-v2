@@ -3,6 +3,7 @@ package controller
 import (
 	"net/http"
 	"pijar/middleware"
+	"pijar/middleware"
 	"pijar/model"
 	"pijar/usecase"
 	"pijar/utils/service"
@@ -16,10 +17,17 @@ type JournalController struct {
 	usecase usecase.JournalUsecase
 	rg      *gin.RouterGroup
 	aM      middleware.AuthMiddleware
+	usecase usecase.JournalUsecase
+	rg      *gin.RouterGroup
+	aM      middleware.AuthMiddleware
 }
 
 func NewJournalController(usecase usecase.JournalUsecase, rg *gin.RouterGroup, aM middleware.AuthMiddleware) *JournalController {
+func NewJournalController(usecase usecase.JournalUsecase, rg *gin.RouterGroup, aM middleware.AuthMiddleware) *JournalController {
 	return &JournalController{
+		usecase: usecase,
+		rg:      rg,
+		aM:      aM,
 		usecase: usecase,
 		rg:      rg,
 		aM:      aM,
@@ -27,7 +35,6 @@ func NewJournalController(usecase usecase.JournalUsecase, rg *gin.RouterGroup, a
 }
 
 func (c *JournalController) Route() {
-<<<<<<< HEAD
 
 	journalGroup := c.rg.Group("/journals")
 	userRoutes := journalGroup.Use(c.aM.RequireToken("USER", "ADMIN"))
@@ -45,15 +52,6 @@ func (c *JournalController) Route() {
 		adminRoutes.GET("/:journalID", c.GetJournalByID) // Khusus Admin
 
 	}
-=======
-	c.RouterGroup.POST("/journals", c.CreateJournal)
-	c.RouterGroup.GET("/journals", c.GetAllJournals)
-	c.RouterGroup.GET("/journals/user/:userID", c.GetJournalsByUserID)
-	c.RouterGroup.GET("/journals/:journalID", c.GetJournalByID)
-	c.RouterGroup.PUT("/journals/:journalID", c.UpdateJournal)
-	c.RouterGroup.DELETE("/journals/:journalID", c.DeleteJournal)
-	c.RouterGroup.GET("/journals/user/:userID/export", c.ExportJournalsToPDF)
->>>>>>> a527605 (feat(journal): update fitur journal)
 }
 
 func (c *JournalController) CreateJournal(ctx *gin.Context) {
@@ -129,13 +127,12 @@ func (c *JournalController) GetJournalByID(ctx *gin.Context) {
 }
 
 func (c *JournalController) UpdateJournal(ctx *gin.Context) {
-    journalID, err := strconv.Atoi(ctx.Param("journalID"))
-    if err != nil {
-        ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid journal ID"})
-        return
-    }
+	journalID, err := strconv.Atoi(ctx.Param("journalID"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid journal ID"})
+		return
+	}
 
-<<<<<<< HEAD
 	// Get existing journal to get the correct user_id
 	existingJournal, err := c.usecase.FindByID(ctx, journalID)
 	if err != nil {
@@ -152,31 +149,13 @@ func (c *JournalController) UpdateJournal(ctx *gin.Context) {
 	// Set user_id from existing journal
 	journal.UserID = existingJournal.UserID
 	journal.ID = journalID
-=======
-    // Get existing journal to get the correct user_id
-    existingJournal, err := c.usecase.FindByID(ctx, journalID)
-    if err != nil {
-        ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
 
-    var journal model.Journal
-    if err := ctx.ShouldBindJSON(&journal); err != nil {
-        ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-        return
-    }
->>>>>>> a527605 (feat(journal): update fitur journal)
+	if err := c.usecase.Update(ctx, &journal); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
-    // Set user_id from existing journal
-    journal.UserID = existingJournal.UserID
-    journal.ID = journalID
-
-    if err := c.usecase.Update(ctx, &journal); err != nil {
-        ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
-
-    ctx.JSON(http.StatusOK, journal)
+	ctx.JSON(http.StatusOK, journal)
 }
 
 func (c *JournalController) DeleteJournal(ctx *gin.Context) {

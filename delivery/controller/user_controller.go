@@ -22,7 +22,6 @@ func (uc *UserController) Route() {
 	uc.rg.DELETE("/users/:id", uc.DeleteUserController)
 	uc.rg.GET("/users/email/:email", uc.GetUserByEmail)
 
-	// Add route for completing article progress (based on memory)
 	uc.rg.POST("/goals/complete-article", uc.authMiddleware.RequireToken("USER"))
 }
 

@@ -9,9 +9,6 @@ import (
 	"pijar/usecase"
 
 	"github.com/gin-gonic/gin"
-	"pijar/model"
-	"pijar/middleware"
-	"pijar/usecase"
 )
 
 type SessionHandler struct {
@@ -42,29 +39,11 @@ func (h *SessionHandler) Route() {
 	{
 		adminRoutes.GET("/user/:user_id", h.HandleGetUserSessions)
 	}
-	aM middleware.AuthMiddleware
-}
-
-type CoachRequest struct {
-	UserInput string `json:"user_input"`
-}
-
-type StartSessionResponse struct {
-	SessionID string `json:"session_id"`
-	Response  string `json:"response"`
-}
-
-type ContinueSessionRequest struct {
-	UserInput string `json:"user_input"`
-}
-
-type SessionHistoryResponse struct {
-	SessionID string          `json:"session_id"`
-	Messages  []model.Message `json:"messages"`
 }
 
 // HandleStartSession menangani permintaan untuk memulai sesi baru
 func (h *SessionHandler) HandleStartSession(c *gin.Context) {
+	var req dto.CoachRequest
 	var req dto.CoachRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -84,6 +63,7 @@ func (h *SessionHandler) HandleStartSession(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, dto.StartSessionResponse{
+	c.JSON(http.StatusOK, dto.StartSessionResponse{
 		SessionID: sessionID,
 		Response:  response,
 	})
@@ -97,6 +77,7 @@ func (h *SessionHandler) HandleContinueSession(c *gin.Context) {
 		return
 	}
 
+	var req dto.ContinueSessionRequest
 	var req dto.ContinueSessionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -115,6 +96,7 @@ func (h *SessionHandler) HandleContinueSession(c *gin.Context) {
 		return
 	}
 
+	c.JSON(http.StatusOK, dto.StartSessionResponse{
 	c.JSON(http.StatusOK, dto.StartSessionResponse{
 		SessionID: sessionID,
 		Response:  response,
@@ -156,6 +138,7 @@ func (h *SessionHandler) HandleGetSessionHistory(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, dto.SessionHistoryResponse{
+	c.JSON(http.StatusOK, dto.SessionHistoryResponse{
 		SessionID: sessionID,
 		Messages:  history,
 	})
@@ -180,28 +163,4 @@ func (h *SessionHandler) HandleGetUserSessions(c *gin.Context) {
 	})
 }
 
-// Route mendefinisikan rute-rute API
-func (h *SessionHandler) Route() {
-	sessionGroup := h.rg.Group("/sessions")
-	userRoutes := sessionGroup.Use(h.aM.RequireToken("USER", "ADMIN"))
-	{
-		userRoutes.POST("/start/:user_id", h.HandleStartSession)
-		userRoutes.POST("/continue/:sessionId/:user_id", h.HandleContinueSession)
-		userRoutes.GET("/history/:sessionId/:user_id", h.HandleGetSessionHistory)
-	}
-
-	adminRoutes := sessionGroup.Group("")
-	adminRoutes.Use(h.aM.RequireToken("ADMIN"))
-	{
-		adminRoutes.GET("/user/:user_id", h.HandleGetUserSessions)
-	}
-}
-
-func NewSessionHandler(uc usecase.SessionUsecase, rg *gin.RouterGroup, aM middleware.AuthMiddleware) *SessionHandler {
-	return &SessionHandler{
-		usecase: uc,
-		rg:      *rg,
-		aM:      aM,
-	}
-}
 
