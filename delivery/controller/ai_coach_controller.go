@@ -6,12 +6,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"pijar/model"
+	"pijar/middleware"
 	"pijar/usecase"
 )
 
 type SessionHandler struct {
 	usecase usecase.SessionUsecase
 	rg      gin.RouterGroup
+	aM middleware.AuthMiddleware
 }
 
 type CoachRequest struct {
@@ -151,16 +153,26 @@ func (h *SessionHandler) HandleGetUserSessions(c *gin.Context) {
 
 // Route mendefinisikan rute-rute API
 func (h *SessionHandler) Route() {
-	h.rg.POST("/sessions/start/:user_id", h.HandleStartSession)
-	h.rg.POST("/sessions/continue/:sessionId/:user_id", h.HandleContinueSession)
-	h.rg.GET("/sessions/history/:sessionId/:user_id", h.HandleGetSessionHistory)
-	h.rg.GET("/sessions/user/:user_id", h.HandleGetUserSessions)
+	sessionGroup := h.rg.Group("/sessions")
+	userRoutes := sessionGroup.Use(h.aM.RequireToken("USER", "ADMIN"))
+	{
+		userRoutes.POST("/start/:user_id", h.HandleStartSession)
+		userRoutes.POST("/continue/:sessionId/:user_id", h.HandleContinueSession)
+		userRoutes.GET("/history/:sessionId/:user_id", h.HandleGetSessionHistory)
+	}
+
+	adminRoutes := sessionGroup.Group("")
+	adminRoutes.Use(h.aM.RequireToken("ADMIN"))
+	{
+		adminRoutes.GET("/user/:user_id", h.HandleGetUserSessions)
+	}
 }
 
-func NewSessionHandler(uc usecase.SessionUsecase, rg *gin.RouterGroup) *SessionHandler {
+func NewSessionHandler(uc usecase.SessionUsecase, rg *gin.RouterGroup, aM middleware.AuthMiddleware) *SessionHandler {
 	return &SessionHandler{
 		usecase: uc,
 		rg:      *rg,
+		aM:      aM,
 	}
 }
 

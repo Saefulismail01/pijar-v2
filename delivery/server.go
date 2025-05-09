@@ -50,7 +50,7 @@ func (s *Server) initRoute() {
 	controller.NewMidtransCallbackHandler(rg, s.paymentUsecase).Route()
 
 	// Feature Coach
-	controller.NewSessionHandler(s.coachUC, rg).Route()
+	controller.NewSessionHandler(s.coachUC, rg, *s.authMiddleware).Route()
 
 	// feature journal
 	controller.NewJournalController(s.journalUC, rg).Route()
@@ -62,7 +62,7 @@ func (s *Server) initRoute() {
 	controller.NewArticleController(s.articleUC, rg).Route()
 
 	// feature daily goals
-	controller.NewGoalController(s.dailyGoalUC, rg).Route()
+	controller.NewGoalController(s.dailyGoalUC, rg, *s.authMiddleware).Route()
 }
 
 func (s *Server) Run() {
