@@ -1,10 +1,10 @@
 package controller
 
 import (
-	"pijar/model"
-	"pijar/usecase"
 	"log"
 	"net/http"
+	"pijar/model"
+	"pijar/usecase"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
