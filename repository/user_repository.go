@@ -25,6 +25,8 @@ type UserRepoInterface interface {
 	UpdateUser(user model.Users) (model.Users, error)
 	DeleteUser(id int) error
 	GetUserByEmail(email string) (model.Users, error)
+	SaveDeviceToken(userID int, token, platform string) error
+	GetDeviceTokens(userID int) ([]string, error)
 }
 
 // Ensure *UserRepo implements UserRepoInterface
