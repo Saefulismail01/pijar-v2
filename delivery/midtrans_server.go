@@ -51,12 +51,12 @@ func NewMidtransServer() {
 	authMiddleware := middleware.NewAuthMiddleware(jwtService)
 
 	// Initialize usecases
-	userUsecase := usecase.NewUserUsecase(*userRepo)
+	userUsecase := usecase.NewUserUsecase(userRepo)
 	authUsecase := usecase.NewAuthUsecase(userRepo, jwtService)
 	paymentUsecase := usecase.NewPaymentUsecase(midtransService, productRepo, transactionRepo)
 
 	// Initialize controllers and setup routes
-	userController := controller.NewUserController(api, userUsecase, userRepo, jwtService, authMiddleware)
+	userController := controller.NewUserController(api, userUsecase, jwtService, authMiddleware)
 	userController.Route()
 
 	authController := controller.NewAuthController(api, jwtService, authUsecase)

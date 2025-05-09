@@ -11,7 +11,8 @@ import (
 
 type JournalRepository interface {
 	Create(ctx context.Context, journal *model.Journal) error
-	FindAll(ctx context.Context, userID int) ([]model.Journal, error)
+	FindAll(ctx context.Context) ([]model.Journal, error)
+	FindByUserID(ctx context.Context, userID int) ([]model.Journal, error)
 	FindByID(ctx context.Context, id int) (*model.Journal, error)
 	Update(ctx context.Context, journal *model.Journal) error
 	Delete(ctx context.Context, id int) error
@@ -56,7 +57,38 @@ func (r *journalRepository) Create(ctx context.Context, journal *model.Journal) 
 	).Scan(&journal.ID, &journal.CreatedAt, &journal.UpdatedAt)
 }
 
-func (r *journalRepository) FindAll(ctx context.Context, userID int) ([]model.Journal, error) {
+func (r *journalRepository) FindAll(ctx context.Context) ([]model.Journal, error) {
+	var journals []model.Journal
+	query := `SELECT id, user_id, judul, isi, perasaan, created_at, updated_at 
+	         FROM journals`
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var journal model.Journal
+		if err := rows.Scan(
+			&journal.ID,
+			&journal.UserID,
+			&journal.Judul,
+			&journal.Isi,
+			&journal.Perasaan,
+			&journal.CreatedAt,
+			&journal.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		journals = append(journals, journal)
+	}
+
+	return journals, nil
+}
+
+
+func (r *journalRepository) FindByUserID(ctx context.Context, userID int) ([]model.Journal, error) {
 	var journals []model.Journal
 	query := `SELECT id, user_id, judul, isi, perasaan, created_at, updated_at 
 	         FROM journals 

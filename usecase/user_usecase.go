@@ -8,18 +8,26 @@ import (
 	"pijar/utils/service"
 )
 
+type UserUsecase interface {
+	CreateUserUsecase(user model.Users) (model.Users, error)
+	GetAllUsersUsecase() ([]model.Users, error)
+	GetUserByIDUsecase(id int) (model.Users, error)
+	GetUserByEmail(email string) (model.Users, error)
+	UpdateUserUsecase(user model.Users) (model.Users, error)
+	DeleteUserUsecase(id int) error
+}
 
-type UserUsecase struct {
+type userUsecase struct {
 	UserRepo repository.UserRepoInterface
 }
 
-func NewUserUsecase(repo repository.UserRepoInterface) *UserUsecase {
-	return &UserUsecase{
+func NewUserUsecase(repo repository.UserRepoInterface) *userUsecase {
+	return &userUsecase{
 		UserRepo: repo,
 	}
 }
 
-func (u *UserUsecase) CreateUserUsecase(user model.Users) (model.Users, error) {
+func (u *userUsecase) CreateUserUsecase(user model.Users) (model.Users, error) {
 	// Validasi email format
 	if !service.IsValidEmail(user.Email) {
 		return model.Users{}, errors.New("invalid email format")
@@ -48,18 +56,20 @@ func (u *UserUsecase) CreateUserUsecase(user model.Users) (model.Users, error) {
 	return createdUser, nil
 }
 
-
-func (u *UserUsecase) GetAllUsersUsecase() ([]model.Users, error) {
+func (u *userUsecase) GetAllUsersUsecase() ([]model.Users, error) {
 	return u.UserRepo.GetAllUsers()
 }
 
-func (u *UserUsecase) GetUserByIDUsecase(id int) (model.Users, error) {
+func (u *userUsecase) GetUserByIDUsecase(id int) (model.Users, error) {
 	return u.UserRepo.GetUserByID(id)
 }
 
+func (u *userUsecase) GetUserByEmail(email string) (model.Users, error) {
+	return u.UserRepo.GetUserByEmail(email)
+}
 
 // UpdateUser updates a user's information
-func (u *UserUsecase) UpdateUserUsecase(user model.Users) (model.Users, error) {
+func (u *userUsecase) UpdateUserUsecase(user model.Users) (model.Users, error) {
 	// Check if the user exists
 	existingUser, err := u.UserRepo.GetUserByID(user.ID)
 	if err != nil {
@@ -80,7 +90,7 @@ func (u *UserUsecase) UpdateUserUsecase(user model.Users) (model.Users, error) {
 	return updatedUser, nil
 }
 
-func (u *UserUsecase) DeleteUserUsecase(id int) error {
+func (u *userUsecase) DeleteUserUsecase(id int) error {
 	// Pastikan user ada terlebih dahulu
 	_, err := u.UserRepo.GetUserByID(id)
 	if err != nil {

@@ -40,7 +40,7 @@ func (c *dailyGoalsController) Route() {
 
 	// Endpoint untuk user biasa
 	userRoutes := goalsGroup.Group("")
-	userRoutes.Use(c.aM.RequireToken("USER"))
+	userRoutes.Use(c.aM.RequireToken("USER", "ADMIN"))
 	{
 		userRoutes.POST("/:user_id", c.CreateGoal)                  // [User] Create goal
 		userRoutes.PUT("/:user_id/:id", c.UpdateGoal)               // [User] Update goal
