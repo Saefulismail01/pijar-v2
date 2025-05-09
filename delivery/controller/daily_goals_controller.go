@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"pijar/middleware"
 	"pijar/model/dto"
 	"pijar/usecase"
 	"strconv"
@@ -16,20 +17,36 @@ import (
 type dailyGoalsController struct {
 	uc usecase.DailyGoalUseCase
 	rg *gin.RouterGroup
+	aM middleware.AuthMiddleware
 }
 
-func NewGoalController(uc usecase.DailyGoalUseCase, rg *gin.RouterGroup) *dailyGoalsController {
-	return &dailyGoalsController{
-		uc: uc, 
-		rg: rg}
+func NewGoalController(
+	uc usecase.DailyGoalUseCase,
+	rg *gin.RouterGroup,
+	aM middleware.AuthMiddleware,
+) *dailyGoalsController {
+	return &dailyGoalsController{uc: uc, rg: rg, aM: aM}
 }
 
 func (c *dailyGoalsController) Route() {
-	c.rg.POST("/goals/:user_id", c.CreateGoal)
-	c.rg.PUT("/goals/:user_id/:id", c.UpdateGoal)
-	c.rg.PUT("/goals/complete-article", c.CompleteGoalProgress)
-	c.rg.GET("/goals/:user_id", c.GetUserGoals)
-	c.rg.DELETE("/goals/:user_id/:id", c.DeleteGoal)
+	goalsGroup := c.rg.Group("/goals")
+
+	// Endpoint khusus admin
+	adminRoutes := goalsGroup.Group("")
+	adminRoutes.Use(c.aM.RequireToken("ADMIN"))
+	{
+		adminRoutes.GET("/:user_id", c.GetUserGoals) // [Admin] Get goals by user ID
+	}
+
+	// Endpoint untuk user biasa
+	userRoutes := goalsGroup.Group("")
+	userRoutes.Use(c.aM.RequireToken("USER"))
+	{
+		userRoutes.POST("/:user_id", c.CreateGoal)                  // [User] Create goal
+		userRoutes.PUT("/:user_id/:id", c.UpdateGoal)               // [User] Update goal
+		userRoutes.PUT("/complete-article", c.CompleteGoalProgress) // [User] Complete article
+		userRoutes.DELETE("/:user_id/:id", c.DeleteGoal)            // [User] Delete goal
+	}
 }
 
 // @Summary      Create a new goal
