@@ -1,6 +1,5 @@
 package delivery
 
-/*
 import (
 	"context"
 	"database/sql"
@@ -17,44 +16,109 @@ import (
 	"syscall"
 	"time"
 
+	firebase "firebase.google.com/go/v4"
 	"github.com/gin-gonic/gin"
+	"github.com/robfig/cron/v3"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"google.golang.org/api/option"
 )
 
 type Server struct {
-	coachUC   usecase.SessionUsecase
-	journalUC usecase.JournalUsecase
-	topicUC   usecase.TopicUsecase
-	articleUC usecase.ArticleUsecase
-	dailyGoalUC usecase.DailyGoalUseCase
-	engine      *gin.Engine
-	server      *http.Server
-	db          *sql.DB
-	host        string
-//	port        string
+	engine         *gin.Engine
+	server         *http.Server
+	db             *sql.DB
+	host           string
+	port           string
+	dailyGoalUC    usecase.DailyGoalUseCase
+	jwtService     service.JwtService
+	notificationUC *usecase.NotificationUseCase // Tambahkan ini
+	userRepo       *repository.UserRepo
 }
 
+func NewServer() *Server {
+	cfg, err := config.NewConfig()
+	if err != nil {
+		panic(fmt.Errorf("failed to read config: %v", err))
+	}
+
+	db, err := config.ConnectDB(cfg.DBConfig)
+	if err != nil {
+		panic(fmt.Errorf("failed to connect db: %v", err))
+	}
+	// Inisialisasi Firebase
+	firebaseApp, err := initializeFirebase()
+	if err != nil {
+		panic(fmt.Errorf("failed to initialize firebase: %v", err))
+	}
+
+	// Buat FCM Client
+	fcmClient, err := service.NewFCMClient(firebaseApp)
+	if err != nil {
+		panic(fmt.Errorf("failed to create FCM client: %v", err))
+	}
+
+	// Inisialisasi Repository dan Usecase
+	userRepo := repository.NewUserRepo(db)
+	dailyGoalRepo := repository.NewDailyGoalsRepository(db)
+	dailyGoalUC := usecase.NewGoalUseCase(dailyGoalRepo, *userRepo, fcmClient)
+	notificationUC := usecase.NewNotificationUseCase(
+		userRepo,
+		dailyGoalRepo,
+		fcmClient,
+	)
+
+	// Setup cron job untuk reminder
+	c := cron.New()
+	c.AddFunc("0 9,13,17,20 * * *", notificationUC.SendScheduledReminders)
+	c.Start()
+
+	host := fmt.Sprintf("%s:%s", cfg.APIHost, cfg.APIPort)
+
+	engine := gin.New()
+	engine.Use(gin.Recovery())
+
+	return &Server{
+		engine:         engine,
+		db:             db,
+		host:           host,
+		dailyGoalUC:    dailyGoalUC,
+		notificationUC: notificationUC,
+		userRepo:       userRepo,
+	}
+}
 
 func (s *Server) initRoute() {
+	// add swagger route in /pijar
+	pijarGroup := s.engine.Group("/pijar")
+	{
+		pijarGroup.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	rg := s.engine.Group("/pijar")
+		authMiddleware := middleware.NewAuthMiddleware(s.jwtService)
 
-	// Feature Coach
-	controller.NewSessionHandler(s.coachUC, rg).Route()
+		dailyGoalController := controller.NewGoalController(
+			s.dailyGoalUC,
+			pijarGroup,      // Gunakan group yang sama
+			*authMiddleware, // Tambahkan auth middleware
+		)
+		dailyGoalController.Route()
+	}
+	notificationCtrl := controller.NewNotificationController(
+		*s.userRepo,
+		*s.notificationUC,
+		pijarGroup,
+	)
+	notificationCtrl.Route()
+}
 
-	// feature journal
-	controller.NewJournalController(s.journalUC, rg).Route()
-
-	// feature topic
-	controller.NewTopicController(s.topicUC, rg).Route()
-
-	// feature articles
-	controller.NewArticleController(s.articleUC, rg).Route()
-
-	// feature daily goals
-	controller.NewGoalController(s.dailyGoalUC, rg).Route()
-
+func initializeFirebase() (*firebase.App, error) {
+	// Gunakan credentials dari environment variable
+	opt := option.WithCredentialsFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+	app, err := firebase.NewApp(context.Background(), nil, opt)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing app: %v", err)
+	}
+	return app, nil
 }
 
 func (s *Server) Run() {
@@ -97,35 +161,3 @@ func (s *Server) Run() {
 
 	fmt.Println("Server gracefully stopped 󱠡")
 }
-
-
-
-
-func NewServer() *Server {
-	cfg, err := config.NewConfig()
-	if err != nil {
-		panic(fmt.Errorf("failed to read config: %v", err))
-	}
-
-	db, err := config.ConnectDB(cfg.DBConfig)
-	if err != nil {
-		panic(fmt.Errorf("failed to connect db: %v", err))
-	}
-
-	dailyGoalRepo := repository.NewDailyGoalsRepository(db)
-	dailyGoalUC := usecase.NewGoalUseCase(dailyGoalRepo)
-
-	host := fmt.Sprintf("%s:%s", cfg.APIHost, cfg.APIPort)
-
-	engine := gin.New()
-	engine.Use(gin.Recovery())
-
-	return &Server{
-		engine:      engine,
-		db:          db,
-		host:        host,
-		dailyGoalUC: dailyGoalUC,
-	}
-}
-
-*/

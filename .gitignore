@@ -1,5 +1,7 @@
 .env
 go.mod
 go.sum
-/delivery/server.go
+./delivery/server.go
 API_DOCUMENTATION.md
+
+./config/pijar-7af83-firebase-adminsdk-fbsvc-de539d6e6b.json
