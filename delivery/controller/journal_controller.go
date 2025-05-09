@@ -3,6 +3,7 @@ package controller
 import (
 	"net/http"
 	"pijar/middleware"
+	"pijar/middleware"
 	"pijar/model"
 	"pijar/usecase"
 	"pijar/utils/service"
@@ -16,10 +17,17 @@ type JournalController struct {
 	usecase usecase.JournalUsecase
 	rg      *gin.RouterGroup
 	aM      middleware.AuthMiddleware
+	usecase usecase.JournalUsecase
+	rg      *gin.RouterGroup
+	aM      middleware.AuthMiddleware
 }
 
 func NewJournalController(usecase usecase.JournalUsecase, rg *gin.RouterGroup, aM middleware.AuthMiddleware) *JournalController {
+func NewJournalController(usecase usecase.JournalUsecase, rg *gin.RouterGroup, aM middleware.AuthMiddleware) *JournalController {
 	return &JournalController{
+		usecase: usecase,
+		rg:      rg,
+		aM:      aM,
 		usecase: usecase,
 		rg:      rg,
 		aM:      aM,

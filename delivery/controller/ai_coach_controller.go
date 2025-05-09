@@ -44,6 +44,7 @@ func (h *SessionHandler) Route() {
 // HandleStartSession menangani permintaan untuk memulai sesi baru
 func (h *SessionHandler) HandleStartSession(c *gin.Context) {
 	var req dto.CoachRequest
+	var req dto.CoachRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -62,6 +63,7 @@ func (h *SessionHandler) HandleStartSession(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, dto.StartSessionResponse{
+	c.JSON(http.StatusOK, dto.StartSessionResponse{
 		SessionID: sessionID,
 		Response:  response,
 	})
@@ -75,6 +77,7 @@ func (h *SessionHandler) HandleContinueSession(c *gin.Context) {
 		return
 	}
 
+	var req dto.ContinueSessionRequest
 	var req dto.ContinueSessionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -93,6 +96,7 @@ func (h *SessionHandler) HandleContinueSession(c *gin.Context) {
 		return
 	}
 
+	c.JSON(http.StatusOK, dto.StartSessionResponse{
 	c.JSON(http.StatusOK, dto.StartSessionResponse{
 		SessionID: sessionID,
 		Response:  response,
@@ -133,6 +137,7 @@ func (h *SessionHandler) HandleGetSessionHistory(c *gin.Context) {
 		return
 	}
 
+	c.JSON(http.StatusOK, dto.SessionHistoryResponse{
 	c.JSON(http.StatusOK, dto.SessionHistoryResponse{
 		SessionID: sessionID,
 		Messages:  history,

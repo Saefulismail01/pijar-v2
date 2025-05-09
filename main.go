@@ -1,15 +1,35 @@
+// package main
+//
+// import (
+// 	"fmt"
+// 	"pijar/delivery"
+// )
+//
+// func main() {
+// 	server := delivery.NewServer()
+// 	if server == nil {
+// 		fmt.Println("Failed to initialize server. Please check your configuration and try again.")
+// 		return
+// 	}
+// 	server.Run()
+// }
+
+
 package main
 
 import (
-	"fmt"
+	"log"
 	"pijar/delivery"
+	_ "pijar/docs"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
-	server := delivery.NewServer()
-	if server == nil {
-		fmt.Println("Failed to initialize server. Please check your configuration and try again.")
-		return
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("error loading .env file")
 	}
-	server.Run()
+
+	delivery.NewServer().Run()
 }

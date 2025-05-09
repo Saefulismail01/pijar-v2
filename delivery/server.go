@@ -19,6 +19,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-resty/resty/v2"
 	"github.com/joho/godotenv"
+	"github.com/robfig/cron/v3"
 )
 
 type Server struct {
@@ -28,7 +29,7 @@ type Server struct {
 	articleUC      usecase.ArticleUsecase
 	dailyGoalUC    usecase.DailyGoalUseCase
 	userRepo       repository.UserRepoInterface
-	userUsecase    usecase.UserUsecase
+	userUsecase    *usecase.UserUsecase
 	authUsecase    *usecase.AuthUsecase
 	paymentUsecase usecase.PaymentUsecase
 	jwtService     service.JwtService
@@ -43,12 +44,10 @@ func (s *Server) initRoute() {
 	rg := s.engine.Group("/pijar")
 
 	// Initialize controllers and setup routes
-	controller.NewUserController(rg, s.userUsecase, s.jwtService, s.authMiddleware).Route()
-
+	controller.NewUserController(rg, s.userUsecase, s.userRepo, s.jwtService, s.authMiddleware).Route()
 	controller.NewAuthController(rg, s.jwtService, s.authUsecase).Route()
-
+	// Payment controllers
 	controller.NewPaymentController(rg, s.paymentUsecase).Route()
-
 	controller.NewMidtransCallbackHandler(rg, s.paymentUsecase).Route()
 
 	// Feature Coach
@@ -128,12 +127,27 @@ func NewServer() *Server {
 		return nil
 	}
 
+	// Initialize Firebase
+	firebaseApp, err := initializeFirebase()
+	if err != nil {
+		panic(fmt.Errorf("failed to initialize firebase: %v", err))
+	}
+
+	// Buat FCM Client
+	fcmClient, err := service.NewFCMClient(firebaseApp)
+	if err != nil {
+		panic(fmt.Errorf("failed to create FCM client: %v", err))
+	}
+
 	// Initialize repositories
 	userRepo := repository.NewUserRepo(db)
 	productRepo := repository.NewProductRepository(db)
 	transactionRepo := repository.NewTransactionRepository(db)
+	dailyGoalRepo := repository.NewDailyGoalsRepository(db)
+	notifRepo := repository.NewNotificationRepo(db)
 
 	// Initialize services
+
 	jwtService := service.NewJwtService("SECRETKU", "PIJAR-APP", time.Hour*2)
 	restyClient := resty.New()
 	midtransService := service.NewMidtransService(restyClient)
@@ -145,6 +159,18 @@ func NewServer() *Server {
 	userUsecase := usecase.NewUserUsecase(userRepo)
 	authUsecase := usecase.NewAuthUsecase(userRepo, jwtService)
 	paymentUsecase := usecase.NewPaymentUsecase(midtransService, productRepo, transactionRepo)
+
+	// Tambahan usecase notifikasi
+	notificationUC := usecase.NewNotificationUseCase(
+		notifRepo,
+		dailyGoalRepo,
+		fcmClient,
+	)
+
+	// Setup cron job untuk reminder
+	c := cron.New()
+	c.AddFunc("0 9,13,17,20 * * *", notificationUC.SendScheduledReminders)
+	c.Start()
 
 	// Initialize session repository
 	sessionRepo := repository.NewSession(db)
@@ -168,13 +194,13 @@ func NewServer() *Server {
 	articleRepo := repository.NewArticleRepository(db)
 	articleUsecase := usecase.NewArticleUsecase(articleRepo)
 
-	dailyGoalRepo := repository.NewDailyGoalsRepository(db)
-	dailyGoalUC := usecase.NewGoalUseCase(dailyGoalRepo)
+	dailyGoalUC := usecase.NewGoalUseCase(dailyGoalRepo, *userRepo, notifRepo, fcmClient)
 
 	engine := gin.Default()
 	host := fmt.Sprintf(":%s", cfg.ApiPort)
 
 	return &Server{
+		// Fitur existing
 		coachUC:        coachUsecase,
 		journalUC:      journalUsecase,
 		topicUC:        topicUsecase,
@@ -189,5 +215,9 @@ func NewServer() *Server {
 		engine:         engine,
 		host:           host,
 		db:             db,
+
+		notificationUC: notificationUC,
+		fcmClient:      fcmClient,
+		cron:           c,
 	}
 }
