@@ -17,6 +17,37 @@ type ArticleControllerImpl struct {
 	aM             middleware.AuthMiddleware
 }
 
+
+func NewArticleController(au usecase.ArticleUsecase, rg *gin.RouterGroup, aM middleware.AuthMiddleware) *ArticleControllerImpl {
+	return &ArticleControllerImpl{
+		articleUsecase: au,
+		rg:             rg,
+		aM:             aM,
+	}
+}
+
+func (ac *ArticleControllerImpl) Route() {
+	articlesGroup := ac.rg.Group("/articles")
+
+	//endpoint khusus admin
+	adminRoutes := articlesGroup.Group("")
+	adminRoutes.Use(ac.aM.RequireToken("ADMIN"))
+	{
+		adminRoutes.GET("/:id", ac.GetArticleByID)
+		adminRoutes.DELETE("/:id", ac.DeleteArticle)
+	}
+
+	//endpoint untuk user
+	userRoutes := articlesGroup.Group("")
+	userRoutes.Use(ac.aM.RequireToken("USER", "ADMIN"))
+	{
+		userRoutes.GET("", ac.GetAllArticles)
+		userRoutes.GET("/all", ac.GetAllArticlesWithoutPagination)
+		userRoutes.POST("/generate", ac.GenerateArticle)
+		userRoutes.POST("/search", ac.SearchArticleByTitle)
+	}
+}
+
 func (ac *ArticleControllerImpl) SearchArticleByTitle(c *gin.Context) {
 	var searchReq dto.ArticleSearchRequest
 	if err := c.ShouldBindJSON(&searchReq); err != nil {
@@ -276,32 +307,4 @@ func (ac *ArticleControllerImpl) DeleteArticle(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Article deletion successful",
 	})
-}
-
-func (ac *ArticleControllerImpl) Route() {
-	articlesGroup := ac.rg.Group("/articles")
-
-	//endpoint khusus admin
-	adminRoutes := articlesGroup.Group("")
-	adminRoutes.Use(ac.aM.RequireToken("ADMIN"))
-	{
-		adminRoutes.GET("/:id", ac.GetArticleByID)
-		adminRoutes.DELETE("/:id", ac.DeleteArticle)
-	}
-
-	//endpoint untuk user
-	userRoutes := articlesGroup.Group("")
-	userRoutes.Use(ac.aM.RequireToken("USER"))
-	{
-		userRoutes.GET("", ac.GetAllArticles)
-		userRoutes.GET("/all", ac.GetAllArticlesWithoutPagination)
-		userRoutes.POST("/generate", ac.GenerateArticle)
-		userRoutes.POST("/search", ac.SearchArticleByTitle)
-	}
-}
-
-func NewArticleController(au usecase.ArticleUsecase, rg *gin.RouterGroup) *ArticleControllerImpl {
-	return &ArticleControllerImpl{
-		articleUsecase: au,
-		rg:             rg}
 }

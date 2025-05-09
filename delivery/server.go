@@ -7,14 +7,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"syscall"
-	"time"
 	"pijar/config"
 	"pijar/delivery/controller"
 	"pijar/middleware"
 	"pijar/repository"
 	"pijar/usecase"
 	"pijar/utils/service"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-resty/resty/v2"
@@ -22,21 +22,21 @@ import (
 )
 
 type Server struct {
-	coachUC         usecase.SessionUsecase
-	journalUC       usecase.JournalUsecase
-	topicUC         usecase.TopicUsecase
-	articleUC       usecase.ArticleUsecase
-	dailyGoalUC     usecase.DailyGoalUseCase
-	userRepo        repository.UserRepoInterface
-	userUsecase     *usecase.UserUsecase
-	authUsecase     *usecase.AuthUsecase
-	paymentUsecase  usecase.PaymentUsecase
-	jwtService      service.JwtService
-	authMiddleware  *middleware.AuthMiddleware
-	engine          *gin.Engine
-	host            string
-	db              *sql.DB
-	server          *http.Server
+	coachUC        usecase.SessionUsecase
+	journalUC      usecase.JournalUsecase
+	topicUC        usecase.TopicUsecase
+	articleUC      usecase.ArticleUsecase
+	dailyGoalUC    usecase.DailyGoalUseCase
+	userRepo       repository.UserRepoInterface
+	userUsecase    *usecase.UserUsecase
+	authUsecase    *usecase.AuthUsecase
+	paymentUsecase usecase.PaymentUsecase
+	jwtService     service.JwtService
+	authMiddleware *middleware.AuthMiddleware
+	engine         *gin.Engine
+	host           string
+	db             *sql.DB
+	server         *http.Server
 }
 
 func (s *Server) initRoute() {
@@ -53,13 +53,13 @@ func (s *Server) initRoute() {
 	controller.NewSessionHandler(s.coachUC, rg, *s.authMiddleware).Route()
 
 	// feature journal
-	controller.NewJournalController(s.journalUC, rg).Route()
+	controller.NewJournalController(s.journalUC, rg, *s.authMiddleware).Route()
 
 	// feature topic
-	controller.NewTopicController(s.topicUC, rg).Route()
+	controller.NewTopicController(s.topicUC, rg, *s.authMiddleware).Route()
 
 	// feature articles
-	controller.NewArticleController(s.articleUC, rg).Route()
+	controller.NewArticleController(s.articleUC, rg, *s.authMiddleware).Route()
 
 	// feature daily goals
 	controller.NewGoalController(s.dailyGoalUC, rg, *s.authMiddleware).Route()

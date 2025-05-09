@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"pijar/middleware"
 	"pijar/model/dto"
 	"pijar/usecase"
 	"strconv"
@@ -10,24 +11,43 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-
 type TopicControllerImpl struct {
 	topicUsecase usecase.TopicUsecase
-	RouterGroup *gin.RouterGroup
+	rg           gin.RouterGroup
+	aM           middleware.AuthMiddleware
 }
 
-func NewTopicController(tu usecase.TopicUsecase, rg *gin.RouterGroup) *TopicControllerImpl {
-	return &TopicControllerImpl{topicUsecase: tu, 
-		RouterGroup: rg}
+func NewTopicController(tu usecase.TopicUsecase, rg *gin.RouterGroup, aM middleware.AuthMiddleware) *TopicControllerImpl {
+	return &TopicControllerImpl{
+		topicUsecase: tu,
+		rg:           *rg,
+		aM:           aM,
+	}
 }
 
+func (tc *TopicControllerImpl) Route() {
 
-func (tc *TopicControllerImpl) Route(){
-	tc.RouterGroup.POST("/topics", tc.CreateTopic)
-	tc.RouterGroup.GET("/topics", tc.GetAllTopics)
-	tc.RouterGroup.GET("/topics/:id", tc.GetTopicByID)
-	tc.RouterGroup.PUT("/topics/:id", tc.UpdateTopic)
-	tc.RouterGroup.DELETE("/topics/:id", tc.DeleteTopic)
+	topicsGroup := tc.rg.Group("/topics")
+	// User Routes
+	userRoutes := topicsGroup.Use(tc.aM.RequireToken("USER", "ADMIN"))
+	{
+		userRoutes.POST("/", tc.CreateTopic)
+		userRoutes.GET("/", tc.GetAllTopics)
+		userRoutes.PUT("/:id", tc.UpdateTopic)
+		userRoutes.DELETE("/:id", tc.DeleteTopic)
+	}
+
+	// Admin Routes
+	adminRoutes := topicsGroup.Use(tc.aM.RequireToken("ADMIN"))
+	{
+		adminRoutes.GET("/:id", tc.GetTopicByID)
+	}
+
+	// tc.RouterGroup.POST("/topics", tc.CreateTopic)
+	// tc.RouterGroup.GET("/topics", tc.GetAllTopics)
+	// tc.RouterGroup.GET("/topics/:id", tc.GetTopicByID)
+	// tc.RouterGroup.PUT("/topics/h:id", tc.UpdateTopic)
+	// tc.RouterGroup.DELETE("/topics/:id", tc.DeleteTopic)
 
 }
 
