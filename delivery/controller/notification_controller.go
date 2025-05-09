@@ -2,32 +2,34 @@ package controller
 
 import (
 	"net/http"
+
 	"strconv"
 
 	"pijar/middleware"
+	"pijar/repository"
 	"pijar/usecase"
 
 	"github.com/gin-gonic/gin"
 )
 
 type NotificationController struct {
-	// NotifRepo repository.NotifRepoInterface
-	UC usecase.NotificationUseCase
-	RG *gin.RouterGroup
-	aM middleware.AuthMiddleware
+	NotifRepo repository.NotifRepoInterface
+	UC        usecase.NotificationUseCase
+	RG        *gin.RouterGroup
+	aM        middleware.AuthMiddleware
 }
 
 func NewNotificationController(
-	// notifRepo repository.NotifRepoInterface,
+	notifRepo repository.NotifRepoInterface,
 	uc usecase.NotificationUseCase,
 	rg *gin.RouterGroup,
 	aM middleware.AuthMiddleware,
 ) *NotificationController {
 	return &NotificationController{
-		// NotifRepo: notifRepo,
-		UC: uc,
-		RG: rg,
-		aM: aM,
+		NotifRepo: notifRepo,
+		UC:        uc,
+		RG:        rg,
+		aM:        aM,
 	}
 }
 
@@ -60,7 +62,7 @@ func (c *NotificationController) saveDeviceToken(ctx *gin.Context) {
 		return
 	}
 
-	if err := c.UC.NotifRepo.SaveDeviceToken(
+	if err := c.NotifRepo.SaveDeviceToken(
 		userIDInt,
 		req.Token,
 		req.Platform,
