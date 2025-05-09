@@ -9,6 +9,9 @@ import (
 	"pijar/usecase"
 
 	"github.com/gin-gonic/gin"
+	"pijar/model"
+	"pijar/middleware"
+	"pijar/usecase"
 )
 
 type SessionHandler struct {
@@ -39,6 +42,25 @@ func (h *SessionHandler) Route() {
 	{
 		adminRoutes.GET("/user/:user_id", h.HandleGetUserSessions)
 	}
+	aM middleware.AuthMiddleware
+}
+
+type CoachRequest struct {
+	UserInput string `json:"user_input"`
+}
+
+type StartSessionResponse struct {
+	SessionID string `json:"session_id"`
+	Response  string `json:"response"`
+}
+
+type ContinueSessionRequest struct {
+	UserInput string `json:"user_input"`
+}
+
+type SessionHistoryResponse struct {
+	SessionID string          `json:"session_id"`
+	Messages  []model.Message `json:"messages"`
 }
 
 // HandleStartSession menangani permintaan untuk memulai sesi baru
@@ -158,4 +180,28 @@ func (h *SessionHandler) HandleGetUserSessions(c *gin.Context) {
 	})
 }
 
+// Route mendefinisikan rute-rute API
+func (h *SessionHandler) Route() {
+	sessionGroup := h.rg.Group("/sessions")
+	userRoutes := sessionGroup.Use(h.aM.RequireToken("USER", "ADMIN"))
+	{
+		userRoutes.POST("/start/:user_id", h.HandleStartSession)
+		userRoutes.POST("/continue/:sessionId/:user_id", h.HandleContinueSession)
+		userRoutes.GET("/history/:sessionId/:user_id", h.HandleGetSessionHistory)
+	}
+
+	adminRoutes := sessionGroup.Group("")
+	adminRoutes.Use(h.aM.RequireToken("ADMIN"))
+	{
+		adminRoutes.GET("/user/:user_id", h.HandleGetUserSessions)
+	}
+}
+
+func NewSessionHandler(uc usecase.SessionUsecase, rg *gin.RouterGroup, aM middleware.AuthMiddleware) *SessionHandler {
+	return &SessionHandler{
+		usecase: uc,
+		rg:      *rg,
+		aM:      aM,
+	}
+}
 

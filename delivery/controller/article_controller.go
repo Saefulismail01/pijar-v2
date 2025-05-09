@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"pijar/middleware"
+	"pijar/middleware"
 	"pijar/model/dto"
 	"pijar/usecase"
 	"strconv"
@@ -15,37 +16,6 @@ type ArticleControllerImpl struct {
 	articleUsecase usecase.ArticleUsecase
 	rg             *gin.RouterGroup
 	aM             middleware.AuthMiddleware
-}
-
-
-func NewArticleController(au usecase.ArticleUsecase, rg *gin.RouterGroup, aM middleware.AuthMiddleware) *ArticleControllerImpl {
-	return &ArticleControllerImpl{
-		articleUsecase: au,
-		rg:             rg,
-		aM:             aM,
-	}
-}
-
-func (ac *ArticleControllerImpl) Route() {
-	articlesGroup := ac.rg.Group("/articles")
-
-	//endpoint khusus admin
-	adminRoutes := articlesGroup.Group("")
-	adminRoutes.Use(ac.aM.RequireToken("ADMIN"))
-	{
-		adminRoutes.GET("/:id", ac.GetArticleByID)
-		adminRoutes.DELETE("/:id", ac.DeleteArticle)
-	}
-
-	//endpoint untuk user
-	userRoutes := articlesGroup.Group("")
-	userRoutes.Use(ac.aM.RequireToken("USER", "ADMIN"))
-	{
-		userRoutes.GET("", ac.GetAllArticles)
-		userRoutes.GET("/all", ac.GetAllArticlesWithoutPagination)
-		userRoutes.POST("/generate", ac.GenerateArticle)
-		userRoutes.POST("/search", ac.SearchArticleByTitle)
-	}
 }
 
 func (ac *ArticleControllerImpl) SearchArticleByTitle(c *gin.Context) {
@@ -338,18 +308,30 @@ func (ac *ArticleControllerImpl) DeleteArticle(c *gin.Context) {
 =======
 
 func (ac *ArticleControllerImpl) Route() {
-	ac.RouterGroup.GET("/articles", ac.GetAllArticles)
-	ac.RouterGroup.GET("/articles/all", ac.GetAllArticlesWithoutPagination)
-	ac.RouterGroup.GET("/articles/:id", ac.GetArticleByID)
-	ac.RouterGroup.POST("/articles/generate", ac.GenerateArticle)
-	//ac.RouterGroup.PUT("/articles/:id", ac.UpdateArticle)
-	ac.RouterGroup.DELETE("/articles/:id", ac.DeleteArticle)
-	ac.RouterGroup.POST("/articles/search", ac.SearchArticleByTitle)
+	articlesGroup := ac.rg.Group("/articles")
+
+	//endpoint khusus admin
+	adminRoutes := articlesGroup.Group("")
+	adminRoutes.Use(ac.aM.RequireToken("ADMIN"))
+	{
+		adminRoutes.GET("/:id", ac.GetArticleByID)
+		adminRoutes.DELETE("/:id", ac.DeleteArticle)
+	}
+
+	//endpoint untuk user
+	userRoutes := articlesGroup.Group("")
+	userRoutes.Use(ac.aM.RequireToken("USER"))
+	{
+		userRoutes.GET("", ac.GetAllArticles)
+		userRoutes.GET("/all", ac.GetAllArticlesWithoutPagination)
+		userRoutes.POST("/generate", ac.GenerateArticle)
+		userRoutes.POST("/search", ac.SearchArticleByTitle)
+	}
 }
 
 func NewArticleController(au usecase.ArticleUsecase, rg *gin.RouterGroup) *ArticleControllerImpl {
 	return &ArticleControllerImpl{
 		articleUsecase: au,
-		RouterGroup:    rg}
+		rg:             rg}
 }
 >>>>>>> 95e5e67 (feat(article): penambahan pagination atau halaman)

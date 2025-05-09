@@ -47,6 +47,95 @@ type Server struct {
 	notificationUC *usecase.NotificationUseCase
 	fcmClient      *service.FCMClient
 	cron           *cron.Cron
+	coachUC        usecase.SessionUsecase
+	journalUC      usecase.JournalUsecase
+	topicUC        usecase.TopicUsecase
+	articleUC      usecase.ArticleUsecase
+	dailyGoalUC    usecase.DailyGoalUseCase
+	userRepo       repository.UserRepoInterface
+	userUsecase    *usecase.UserUsecase
+	authUsecase    *usecase.AuthUsecase
+	paymentUsecase usecase.PaymentUsecase
+	jwtService     service.JwtService
+	authMiddleware *middleware.AuthMiddleware
+	engine         *gin.Engine
+	host           string
+	db             *sql.DB
+	server         *http.Server
+}
+
+func (s *Server) initRoute() {
+	rg := s.engine.Group("/pijar")
+
+	// Initialize controllers and setup routes
+	controller.NewUserController(rg, s.userUsecase, s.userRepo, s.jwtService, s.authMiddleware).Route()
+	controller.NewAuthController(rg, s.jwtService, s.authUsecase).Route()
+	// Payment controllers
+	controller.NewPaymentController(rg, s.paymentUsecase).Route()
+	controller.NewMidtransCallbackHandler(rg, s.paymentUsecase).Route()
+
+	// Feature Coach
+	controller.NewSessionHandler(s.coachUC, rg, *s.authMiddleware).Route()
+
+	// feature journal
+	controller.NewJournalController(s.journalUC, rg).Route()
+
+	// feature topic
+	controller.NewTopicController(s.topicUC, rg).Route()
+
+	// feature articles
+	controller.NewArticleController(s.articleUC, rg).Route()
+
+	// feature daily goals
+	controller.NewGoalController(s.dailyGoalUC, rg, *s.authMiddleware).Route()
+}
+
+func (s *Server) Run() {
+
+	// s.initRoute()
+	// if err := s.engine.Run(s.host); err != nil {
+	// 	panic(err)
+	// }
+
+	s.initRoute()
+
+	s.server = &http.Server{
+		Addr:    s.host,
+		Handler: s.engine,
+	}
+
+	// channel for signal interrupt
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+
+	// run server in goroutine
+	go func() {
+		fmt.Printf("Server running on %s\n", s.host)
+		if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			panic(fmt.Errorf("failed to start server: %v", err))
+		}
+	}()
+
+	// blocking main goroutine until signal received
+	<-quit
+	fmt.Println("\nShutting down server...")
+
+	// timeout 5 seconds for shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// shutdown server
+	if err := s.server.Shutdown(ctx); err != nil {
+		fmt.Printf("Server forced to shutdown: %v\n", err)
+	}
+
+	// close db connection
+	if err := s.db.Close(); err != nil {
+		fmt.Printf("Error closing database: %v\n", err)
+	}
+
+	fmt.Println("Server gracefully stopped 󱠡")
+
 }
 
 func NewServer() *Server {
