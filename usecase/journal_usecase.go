@@ -8,7 +8,8 @@ import (
 
 type JournalUsecase interface {
 	Create(ctx context.Context, journal *model.Journal) error
-	FindAll(ctx context.Context, userID int) ([]model.Journal, error)
+	FindAll(ctx context.Context) ([]model.Journal, error)
+	FindByUserID(ctx context.Context, userID int) ([]model.Journal, error)
 	FindByID(ctx context.Context, id int) (*model.Journal, error)
 	Update(ctx context.Context, journal *model.Journal) error
 	Delete(ctx context.Context, id int) error
@@ -26,8 +27,12 @@ func (u *journalUsecase) Create(ctx context.Context, journal *model.Journal) err
 	return u.repo.Create(ctx, journal)
 }
 
-func (u *journalUsecase) FindAll(ctx context.Context, userID int) ([]model.Journal, error) {
-	return u.repo.FindAll(ctx, userID)
+func (u *journalUsecase) FindAll(ctx context.Context) ([]model.Journal, error) {
+	return u.repo.FindAll(ctx)
+}
+
+func (u *journalUsecase) FindByUserID(ctx context.Context, userID int) ([]model.Journal, error) {
+	return u.repo.FindByUserID(ctx, userID)
 }
 
 func (u *journalUsecase) FindByID(ctx context.Context, id int) (*model.Journal, error) {
