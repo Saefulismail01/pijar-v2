@@ -3,9 +3,11 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"log"
 	"pijar/model"
 	"pijar/model/dto"
 	"pijar/repository"
+	"pijar/utils/service"
 )
 
 type DailyGoalUseCase interface {
@@ -37,11 +39,24 @@ type DailyGoalUseCase interface {
 }
 
 type dailyGoalUseCase struct {
-	repo repository.DailyGoalRepository
+	repo      repository.DailyGoalRepository
+	userRepo  repository.UserRepo
+	notifRepo repository.NotifRepoInterface
+	fcmClient *service.FCMClient
 }
 
-func NewGoalUseCase(repo repository.DailyGoalRepository) DailyGoalUseCase {
-	return &dailyGoalUseCase{repo: repo}
+func NewGoalUseCase(
+	repo repository.DailyGoalRepository,
+	userRepo repository.UserRepo,
+	notifRepo repository.NotifRepoInterface,
+	fcmClient *service.FCMClient,
+) DailyGoalUseCase {
+	return &dailyGoalUseCase{
+		repo:      repo,
+		userRepo:  userRepo,
+		notifRepo: notifRepo,
+		fcmClient: fcmClient,
+	}
 }
 
 func (uc *dailyGoalUseCase) CompleteArticleProgress(ctx context.Context, goalID int, articleID int, userID int) (dto.GoalProgressInfo, error) {
@@ -92,6 +107,29 @@ func (uc *dailyGoalUseCase) CompleteArticleProgress(ctx context.Context, goalID 
 		}
 	}
 
+	// count unread articles
+	remaining, err := uc.repo.GetPendingArticlesCount(userID)
+	if err != nil {
+		log.Printf("Gagal menghitung artikel tertunda: %v", err)
+	} else {
+		// message notification format
+		message := fmt.Sprintf("🎉 Anda telah menyelesaikan 1 artikel! Tinggal %d %s lagi hari ini.",
+			remaining,
+			map[bool]string{true: "artikel", false: "artikel"}[remaining == 1],
+		)
+
+		// get user's device token
+		tokens, _ := uc.notifRepo.GetDeviceTokens(userID)
+
+		// send notification
+		if len(tokens) > 0 {
+			go uc.fcmClient.SendNotification(
+				tokens,
+				"Progress Diperbarui 🚀",
+				message,
+			)
+		}
+	}
 	// Get the updated progress information
 	progress, err := uc.repo.GetGoalProgress(ctx, goalID, userID)
 	if err != nil {
