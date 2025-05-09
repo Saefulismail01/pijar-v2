@@ -3,19 +3,18 @@ package controller
 import (
 	"net/http"
 	"pijar/model"
+	"pijar/model/dto"
 	"pijar/usecase"
 	"pijar/utils/service"
 
 	"github.com/gin-gonic/gin"
 )
 
-
 type AuthController struct {
 	rg          *gin.RouterGroup
 	jwtService  service.JwtService
 	AuthUsecase *usecase.AuthUsecase
 }
-
 
 func NewAuthController(rg *gin.RouterGroup, jwtService service.JwtService, authUsecase *usecase.AuthUsecase) *AuthController {
 	return &AuthController{
@@ -24,7 +23,6 @@ func NewAuthController(rg *gin.RouterGroup, jwtService service.JwtService, authU
 		AuthUsecase: authUsecase,
 	}
 }
-
 
 func (ac *AuthController) Route() {
 	ac.rg.POST("/register", ac.Register)
@@ -41,14 +39,20 @@ func (a *AuthController) Register(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Bad Request",
+			Error:   err.Error(),
+		})
 		return
 	}
 
 	// Hash password
 	hashedPassword, err := service.HashPassword(input.Password)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "gagal mengenkripsi password"})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Internal Server Error",
+			Error:   "Failed to encrypt password",
+		})
 		return
 	}
 
@@ -58,19 +62,23 @@ func (a *AuthController) Register(c *gin.Context) {
 		PasswordHash: hashedPassword,
 		BirthYear:    input.BirthYear,
 		Phone:        input.Phone,
-		Role: 		  "user",
+		Role:         "user",
 	}
 
 	authResp, err := a.AuthUsecase.Register(user, input.Password)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Bad Request",
+			Error:   err.Error(),
+		})
 		return
 	}
 
-	c.JSON(http.StatusCreated, authResp)
+	c.JSON(http.StatusCreated, dto.Response{
+		Message: "Registration successful",
+		Data:    authResp,
+	})
 }
-
-
 
 func (a *AuthController) Login(c *gin.Context) {
 	var input struct {
@@ -78,16 +86,24 @@ func (a *AuthController) Login(c *gin.Context) {
 		Password string `json:"password"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Bad Request",
+			Error:   err.Error(),
+		})
 		return
 	}
-
 
 	authResp, err := a.AuthUsecase.Login(input.Email, input.Password)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Message: "Unauthorized",
+			Error:   err.Error(),
+		})
 		return
 	}
 
-	c.JSON(http.StatusOK, authResp)
+	c.JSON(http.StatusOK, dto.Response{
+		Message: "Login successful",
+		Data:    authResp,
+	})
 }
