@@ -217,8 +217,8 @@ Detailed API documentation is available:
 ## License
 
 Developer by Team 3 Incubation Class Enigma Camp
-- Saeful Ismail
-- Andika Prasetya
-- Mhammad Hammas
-- Indiyana Noviyanti
+- Saeful Ismail 
+- Andika Prasetia 
+- Muhammad Hamas 
+- Indriana Noviyanti 
 ---
