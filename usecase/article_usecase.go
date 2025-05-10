@@ -32,15 +32,15 @@ func NewArticleUsecase(articleRepo repository.ArticleRepository) ArticleUsecase 
 	}
 }
 
-// CreateArticle menangani generate dan create multiple articles dari preferences
+// CreateArticle handles generating and creating multiple articles from preferences
 func (u *articleUsecase) CreateArticle(c *gin.Context, preferences []string) error {
-	// Generate articles menggunakan Deepseek
+	// Generate articles using Deepseek
 	generatedArticles, err := service.GenerateArticles(c, preferences)
 	if err != nil {
 		return fmt.Errorf("failed to generate articles: %w", err)
 	}
 
-	// Start transaction
+	// Start transaction and save articles
 	ctx := context.Background()
 	tx, err := u.articleRepo.BeginTx(ctx)
 	if err != nil {
@@ -48,7 +48,6 @@ func (u *articleUsecase) CreateArticle(c *gin.Context, preferences []string) err
 	}
 	defer u.articleRepo.RollbackTx(tx)
 
-	// Save setiap artikel dalam transaction
 	for _, genArticle := range generatedArticles {
 		article := &model.Article{
 			Title:   genArticle.Title,
@@ -152,7 +151,7 @@ func (u *articleUsecase) GenerateArticle(ctx context.Context, topicID int) ([]mo
 }
 
 func (u *articleUsecase) GetAllArticles(ctx context.Context, page int) (*model.ArticleResponse, error) {
-	const limit = 3 // limit tetap 3 item per halaman
+	const limit = 3
 
 	if page < 1 {
 		page = 1

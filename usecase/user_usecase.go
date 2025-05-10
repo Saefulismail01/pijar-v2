@@ -28,26 +28,23 @@ func NewUserUsecase(repo repository.UserRepoInterface) *userUsecase {
 }
 
 func (u *userUsecase) CreateUserUsecase(user model.Users) (model.Users, error) {
-	// Validasi email format
+	// Validate user input
 	if !service.IsValidEmail(user.Email) {
 		return model.Users{}, errors.New("invalid email format")
 	}
 
-	// Validasi password minimal
 	if len(user.PasswordHash) < 8 {
 		return model.Users{}, errors.New("password must be at least 8 characters")
 	}
 
-	// Cek apakah email sudah dipakai
 	exists, err := u.UserRepo.IsEmailExists(user.Email)
 	if err != nil {
 		return model.Users{}, err
 	}
 	if exists {
-		return model.Users{}, errors.New("email already in use, please use another one")
+		return model.Users{}, errors.New("email already in use")
 	}
 
-	// Simpan user
 	createdUser, err := u.UserRepo.CreateUser(user)
 	if err != nil {
 		return model.Users{}, err
@@ -91,13 +88,10 @@ func (u *userUsecase) UpdateUserUsecase(id int, user model.Users) (model.Users, 
 }
 
 func (u *userUsecase) DeleteUserUsecase(id int) error {
-	// Pastikan user ada terlebih dahulu
 	_, err := u.UserRepo.GetUserByID(id)
 	if err != nil {
 		return fmt.Errorf("cannot delete: %v", err)
 	}
-
-	// Lanjutkan penghapusan
 	if err := u.UserRepo.DeleteUser(id); err != nil {
 		return fmt.Errorf("failed to delete user: %v", err)
 	}

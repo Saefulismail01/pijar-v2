@@ -45,36 +45,28 @@ func NewGoalUseCase(repo repository.DailyGoalRepository) DailyGoalUseCase {
 }
 
 func (uc *dailyGoalUseCase) CompleteArticleProgress(ctx context.Context, goalID int, articleID int, userID int) (dto.GoalProgressInfo, error) {
-	// Get the goal first to verify it exists and belongs to the user
+	// Complete article progress and update goal status
 	goal, err := uc.repo.GetGoalByID(ctx, goalID, userID)
 	if err != nil {
 		return dto.GoalProgressInfo{}, fmt.Errorf("failed to get goal: %v", err)
 	}
 
-	// Complete the article progress
+	// Initialize updatedGoal
+	updatedGoal := goal
+
+	// Complete article progress
 	err = uc.repo.CompleteArticleProgress(ctx, goalID, int64(articleID), true)
 	if err != nil {
 		return dto.GoalProgressInfo{}, fmt.Errorf("failed to complete article progress: %v", err)
 	}
 
-	// Get the updated goal
-	updatedGoal, err := uc.repo.GetGoalByID(ctx, goalID, userID)
-	if err != nil {
-		return dto.GoalProgressInfo{}, fmt.Errorf("failed to get updated goal: %v", err)
-	}
-
-	// Check if we need to update the main goal status
+	// Update goal status if 3 or more articles are completed
 	completedCount, err := uc.repo.CountCompletedProgress(ctx, goalID, userID)
 	if err != nil {
 		return dto.GoalProgressInfo{}, fmt.Errorf("failed to count completed progress: %v", err)
 	}
 
-	// Log untuk debugging
-	fmt.Printf("Goal %d has %d completed articles. Goal completed status: %v\n", goalID, completedCount, goal.Completed)
-
-	// If 3 or more articles are completed, mark the main goal as completed
 	if completedCount >= 3 && !goal.Completed {
-		fmt.Printf("Updating goal %d to completed\n", goalID)
 		updatedGoal, err = uc.repo.UpdateGoal(
 			ctx,
 			&model.UserGoal{
@@ -84,7 +76,7 @@ func (uc *dailyGoalUseCase) CompleteArticleProgress(ctx context.Context, goalID 
 				Task:      goal.Task,
 				Completed: true,
 			},
-			nil, // No need to update articles_to_read
+			nil,
 			userID,
 		)
 		if err != nil {
@@ -92,7 +84,6 @@ func (uc *dailyGoalUseCase) CompleteArticleProgress(ctx context.Context, goalID 
 		}
 	}
 
-	// Get the updated progress information
 	progress, err := uc.repo.GetGoalProgress(ctx, goalID, userID)
 	if err != nil {
 		return dto.GoalProgressInfo{}, fmt.Errorf("failed to get goal progress: %v", err)

@@ -19,6 +19,8 @@ type MidtransServiceInterface interface {
 	Pay(req model.MidtransSnapReq) (model.MidtransSnapResp, error)
 	VerifyCallback(callback model.MidtransCallbackRequest) error
 	GenerateOrderID() string
+	CheckTransactionStatus(orderID string) (string, error)
+	CancelTransaction(orderID string) error
 }
 
 // midtransService adalah implementasi dari MidtransServiceInterface
@@ -131,6 +133,97 @@ func (m *midtransService) VerifyCallback(callback model.MidtransCallbackRequest)
 func (m *midtransService) GenerateOrderID() string {
 	timestamp := time.Now().UnixNano() / int64(time.Millisecond)
 	return fmt.Sprintf("ORDER-%d", timestamp)
+}
+
+// CheckTransactionStatus memeriksa status transaksi di Midtrans
+func (m *midtransService) CheckTransactionStatus(orderID string) (string, error) {
+	// Validasi server key
+	if m.serverKey == "" {
+		return "", errors.New("SERVER_KEY tidak ditemukan")
+	}
+
+	// Encode server key untuk Basic Auth
+	encodedKey := base64.StdEncoding.EncodeToString([]byte(m.serverKey))
+
+	// URL untuk status transaksi
+	statusURL := fmt.Sprintf("https://api.sandbox.midtrans.com/v2/%s/status", orderID)
+
+	// Kirim request ke Midtrans untuk mendapatkan status
+	resp, err := m.client.R().
+		SetHeader("Accept", "application/json").
+		SetHeader("Content-Type", "application/json").
+		SetHeader("Authorization", "Basic "+encodedKey).
+		Get(statusURL)
+
+	if err != nil {
+		log.Printf("Error checking transaction status: %v", err)
+		return "", fmt.Errorf("error checking transaction status: %w", err)
+	}
+
+	// Parse response
+	var statusResp struct {
+		TransactionStatus string `json:"transaction_status"`
+		StatusCode       string `json:"status_code"`
+		StatusMessage    string `json:"status_message"`
+	}
+
+	err = json.Unmarshal(resp.Body(), &statusResp)
+	if err != nil {
+		log.Printf("Error unmarshalling status response: %v", err)
+		return "", fmt.Errorf("error unmarshalling status response: %w", err)
+	}
+
+	// Log status for debugging
+	log.Printf("Transaction status for order %s: %s", orderID, statusResp.TransactionStatus)
+
+	return statusResp.TransactionStatus, nil
+}
+
+// CancelTransaction membatalkan transaksi di Midtrans
+func (m *midtransService) CancelTransaction(orderID string) error {
+	// Validasi server key
+	if m.serverKey == "" {
+		return errors.New("SERVER_KEY tidak ditemukan")
+	}
+
+	// Encode server key untuk Basic Auth
+	encodedKey := base64.StdEncoding.EncodeToString([]byte(m.serverKey))
+
+	// URL untuk cancel transaksi
+	cancelURL := fmt.Sprintf("https://api.sandbox.midtrans.com/v2/%s/cancel", orderID)
+
+	// Kirim request ke Midtrans untuk cancel transaksi
+	resp, err := m.client.R().
+		SetHeader("Accept", "application/json").
+		SetHeader("Content-Type", "application/json").
+		SetHeader("Authorization", "Basic "+encodedKey).
+		Post(cancelURL)
+
+	if err != nil {
+		log.Printf("Error cancelling transaction: %v", err)
+		return fmt.Errorf("error cancelling transaction: %w", err)
+	}
+
+	// Parse response
+	var cancelResp struct {
+		StatusCode    string `json:"status_code"`
+		StatusMessage string `json:"status_message"`
+	}
+
+	err = json.Unmarshal(resp.Body(), &cancelResp)
+	if err != nil {
+		log.Printf("Error unmarshalling cancel response: %v", err)
+		return fmt.Errorf("error unmarshalling cancel response: %w", err)
+	}
+
+	// Check if cancel was successful
+	if cancelResp.StatusCode != "200" {
+		log.Printf("Failed to cancel transaction: %s", cancelResp.StatusMessage)
+		return fmt.Errorf("failed to cancel transaction: %s", cancelResp.StatusMessage)
+	}
+
+	log.Printf("Transaction %s cancelled successfully", orderID)
+	return nil
 }
 
 // NewMidtransService membuat instance baru dari MidtransService

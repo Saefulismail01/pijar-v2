@@ -1,6 +1,5 @@
 package model
 
-// Item adalah model untuk item yang dibeli
 type Item struct {
 	ID                 string `json:"id"`
 	Name               string `json:"name"`
@@ -9,7 +8,6 @@ type Item struct {
 	MonthlySubscription int   `json:"monthly_subscription"`
 }
 
-// CustomerDetails adalah model untuk detail pelanggan
 type CustomerDetails struct {
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
@@ -17,7 +15,6 @@ type CustomerDetails struct {
 	Phone     string `json:"phone"`
 }
 
-// MidtransSnapReq adalah model request untuk Midtrans Snap
 type MidtransSnapReq struct {
 	TransactionDetails struct {
 		OrderID  string `json:"order_id"`
@@ -28,7 +25,6 @@ type MidtransSnapReq struct {
 	Item            []Item         `json:"item_details"`
 }
 
-// MidtransSnapResp adalah model response dari Midtrans Snap
 type MidtransSnapResp struct {
 	Token         string   `json:"token"`
 	RedirectUrl   string   `json:"redirect_url"`
@@ -55,12 +51,6 @@ type MidtransCallbackRequest struct {
 
 // PaymentRequest adalah model untuk request pembayaran dari client
 type PaymentRequest struct {
-	UserID    int    `json:"user_id"`
-	ProductID int    `json:"product_id"`
-	Amount    int    `json:"amount"`
-	Quantity  int    `json:"quantity"`
-	Email     string `json:"email"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Phone     string `json:"phone"`
+	UserID    int `json:"user_id"`
+	ProductID int `json:"product_id"`
 }

@@ -25,7 +25,7 @@ func NewSessionHandler(uc usecase.SessionUsecase, rg *gin.RouterGroup, aM middle
 	}
 }
 
-// Route mendefinisikan rute-rute API
+// Route defines API routes
 func (h *SessionHandler) Route() {
 	sessionGroup := h.rg.Group("/sessions")
 	userRoutes := sessionGroup.Use(h.aM.RequireToken("USER", "ADMIN"))
@@ -41,7 +41,7 @@ func (h *SessionHandler) Route() {
 	}
 }
 
-// HandleStartSession menangani permintaan untuk memulai sesi baru
+// HandleStartSession handles requests to start a new session
 func (h *SessionHandler) HandleStartSession(c *gin.Context) {
 	var req dto.CoachRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -67,7 +67,7 @@ func (h *SessionHandler) HandleStartSession(c *gin.Context) {
 	})
 }
 
-// HandleContinueSession menangani permintaan untuk melanjutkan sesi yang ada
+// HandleContinueSession handles requests to continue an existing session
 func (h *SessionHandler) HandleContinueSession(c *gin.Context) {
 	sessionID := c.Param("sessionId")
 	if sessionID == "" {
@@ -99,7 +99,7 @@ func (h *SessionHandler) HandleContinueSession(c *gin.Context) {
 	})
 }
 
-// HandleGetSessionHistory mengambil riwayat percakapan
+// HandleGetSessionHistory retrieves conversation history
 func (h *SessionHandler) HandleGetSessionHistory(c *gin.Context) {
 	sessionID := c.Param("sessionId")
 	if sessionID == "" {
@@ -113,7 +113,7 @@ func (h *SessionHandler) HandleGetSessionHistory(c *gin.Context) {
 		return
 	}
 
-	// Default limit 20 pesan
+	// Default limit 20 messages
 	limit := 20
 	if limitStr := c.Query("limit"); limitStr != "" {
 		limit, err = strconv.Atoi(limitStr)
@@ -139,7 +139,7 @@ func (h *SessionHandler) HandleGetSessionHistory(c *gin.Context) {
 	})
 }
 
-// HandleGetUserSessions mengambil daftar sesi pengguna
+// HandleGetUserSessions retrieves user session list
 func (h *SessionHandler) HandleGetUserSessions(c *gin.Context) {
 	userID, err := strconv.Atoi(c.Param("user_id"))
 	if err != nil {

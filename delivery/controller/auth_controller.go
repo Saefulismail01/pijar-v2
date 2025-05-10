@@ -96,10 +96,8 @@ func (a *AuthController) Login(c *gin.Context) {
 	authResp, err := a.AuthUsecase.Login(input.Email, input.Password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, authResp)
 	c.JSON(http.StatusOK, authResp)
 }

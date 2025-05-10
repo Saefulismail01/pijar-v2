@@ -39,7 +39,7 @@ func (uc *UserController) Route() {
 	adminProtected.DELETE("/:id", uc.DeleteUserController)
 	adminProtected.GET("/email/:email", uc.GetUserByEmail)
 
-	// Endpoint untuk membuat user baru (admin only)
+	// Endpoint for creating new user (admin only)
 	log.Println("Registering POST /users endpoint for creating new users")
 	adminProtected.POST("/", uc.CreateUserController)
 	log.Println("POST /users endpoint registered")
@@ -54,7 +54,7 @@ func (uc *UserController) Route() {
 func (uc *UserController) CreateUserController(c *gin.Context) {
 	var userInput model.Users
 
-	// Bind JSON dari request body ke struct userInput
+	// Bind JSON from request body to userInput struct
 	if err := c.ShouldBindJSON(&userInput); err != nil {
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Message: "Bad Request",
@@ -63,10 +63,10 @@ func (uc *UserController) CreateUserController(c *gin.Context) {
 		return
 	}
 
-	// panggil Usecase to create user
+	// Call Usecase to create user
 	createdUser, err := uc.UserUsecase.CreateUserUsecase(userInput)
 	if err != nil {
-		// Kembalikan error yang terjadi
+		// Return the error that occurred
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Message: "Bad Request",
 			Error:   err.Error(),
@@ -74,7 +74,7 @@ func (uc *UserController) CreateUserController(c *gin.Context) {
 		return
 	}
 
-	// Return data user yang berhasil
+	// Return the successfully created user data
 	c.JSON(http.StatusOK, dto.Response{
 		Message: "User created successfully",
 		Data:    createdUser,

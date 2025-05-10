@@ -41,7 +41,7 @@ func (c *JournalController) Route() {
 	adminRoutes := journalGroup.Use(c.aM.RequireToken("ADMIN"))
 	{
 		adminRoutes.GET("", c.GetAllJournals)
-		adminRoutes.GET("/:journalID", c.GetJournalByID) // Khusus Admin
+		adminRoutes.GET("/:journalID", c.GetJournalByID) // Admin Only
 
 	}
 }
