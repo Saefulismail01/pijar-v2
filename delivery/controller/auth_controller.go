@@ -13,14 +13,14 @@ import (
 type AuthController struct {
 	rg          *gin.RouterGroup
 	jwtService  service.JwtService
-	AuthUsecase *usecase.AuthUsecase
+	AuthUsecase usecase.AuthUsecase
 }
 
-func NewAuthController(rg *gin.RouterGroup, jwtService service.JwtService, authUsecase *usecase.AuthUsecase) *AuthController {
+func NewAuthController(rg *gin.RouterGroup, jwt service.JwtService, authUC usecase.AuthUsecase) *AuthController {
 	return &AuthController{
 		rg:          rg, 
-		jwtService:  jwtService,
-		AuthUsecase: authUsecase,
+		jwtService:  jwt,
+		AuthUsecase: authUC,
 	}
 }
 

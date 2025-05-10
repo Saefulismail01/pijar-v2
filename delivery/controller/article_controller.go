@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"pijar/middleware"
-	"pijar/middleware"
 	"pijar/model/dto"
 	"pijar/usecase"
 	"strconv"
@@ -17,7 +16,6 @@ type ArticleControllerImpl struct {
 	rg             *gin.RouterGroup
 	aM             middleware.AuthMiddleware
 }
-
 
 func NewArticleController(au usecase.ArticleUsecase, rg *gin.RouterGroup, aM middleware.AuthMiddleware) *ArticleControllerImpl {
 	return &ArticleControllerImpl{
@@ -139,61 +137,31 @@ func (ac *ArticleControllerImpl) GenerateArticle(c *gin.Context) {
 }
 
 func (ac *ArticleControllerImpl) GetAllArticles(c *gin.Context) {
-<<<<<<< HEAD
-<<<<<<< HEAD
-	// Get query parameters
 	page, _ := strconv.Atoi(c.Query("page"))
 	if page == 0 {
 		page = 1
 	}
 
-	// Get articles with pagination
-	articles, err := ac.articleUsecase.GetAllArticles(c.Request.Context(), page)
+	limit := 10
+	if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 {
+		limit = l
+	}
+
+	articles, total, err := ac.articleUsecase.GetAllArticles(c.Request.Context(), page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Message: "Internal Server Error",
+			Message: "Failed to get articles",
 			Error:   err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.Response{
-		Message: "Articles retrieved successfully",
+	c.JSON(http.StatusOK, dto.PaginatedResponse{
+		Message: "Success",
 		Data:    articles,
-	})
-}
-
-func (ac *ArticleControllerImpl) GetAllArticlesWithoutPagination(c *gin.Context) {
-	// Get all articles without pagination
-	articles, err := ac.articleUsecase.GetAllArticlesWithoutPagination(c.Request.Context())
-	if err != nil {
-=======
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-
-	response, err := ac.articleUsecase.GetAllArticles(c.Request.Context(), page)
-	if err != nil {
->>>>>>> 95e5e67 (feat(article): penambahan pagination atau halaman)
-=======
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-
-	response, err := ac.articleUsecase.GetAllArticles(c.Request.Context(), page)
-	if err != nil {
->>>>>>> b1a2292 (feat (article): ketinggalan usecase)
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
->>>>>>> b1a2292 (feat (article): ketinggalan usecase)
-		"message":    "Get all articles successful",
-		"data":       response.Articles,
-		"pagination": response.Pagination,
+		Page:    page,
+		Limit:   limit,
+		Total:   total,
 	})
 }
 
@@ -207,10 +175,6 @@ func (ac *ArticleControllerImpl) GetAllArticlesWithoutPagination(c *gin.Context)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-<<<<<<< HEAD
->>>>>>> 95e5e67 (feat(article): penambahan pagination atau halaman)
-=======
->>>>>>> b1a2292 (feat (article): ketinggalan usecase)
 		"message": "Get all articles without pagination successful",
 		"data":    articles,
 	})
@@ -239,79 +203,6 @@ func (ac *ArticleControllerImpl) GetArticleByID(c *gin.Context) {
 		"data":    article,
 	})
 }
-
-// func (ac *ArticleControllerImpl) GetArticleByTitle(c *gin.Context) {
-// 	var input struct {
-// 		Title string `json:"title" binding:"required"`
-// 	}
-
-// 	if err := c.ShouldBindJSON(&input); err != nil {
-// 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-// 			"status":  http.StatusBadRequest,
-// 			"message": "Bad Request",
-// 			"errors":  "Title is required in the request body",
-// 		})
-// 		return
-// 	}
-
-// 	if input.Title == "" {
-// 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-// 			"status":  http.StatusBadRequest,
-// 			"message": "Bad Request",
-// 			"errors":  "Title cannot be empty",
-// 		})
-// 		return
-// 	}
-
-// 	article, err := ac.articleUsecase.GetArticleByTitle(c.Request.Context(), input.Title)
-// 	if err != nil {
-// 		statusCode := http.StatusInternalServerError
-// 		if err.Error() == fmt.Sprintf("article with title '%s' not found", input.Title) {
-// 			statusCode = http.StatusNotFound
-// 		}
-// 		c.AbortWithStatusJSON(statusCode, gin.H{
-// 			"status":  statusCode,
-// 			"message": http.StatusText(statusCode),
-// 			"errors":  err.Error(),
-// 		})
-// 		return
-// 	}
-
-// 	c.JSON(http.StatusOK, gin.H{
-// 		"status":  http.StatusOK,
-// 		"message": "Article retrieved successfully",
-// 		"data":    article,
-// 	})
-// }
-
-// func (ac *ArticleControllerImpl) UpdateArticle(c *gin.Context) {
-// 	idStr := c.Param("id")
-// 	id, err := strconv.Atoi(idStr)
-// 	if err != nil {
-// 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid ID format"})
-// 		return
-// 	}
-
-// 	var updateDTO dto.ArticleDto
-// 	if err := c.ShouldBindJSON(&updateDTO); err != nil {
-// 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-// 		return
-// 	}
-
-// 	err = ac.articleUsecase.UpdateArticle(c.Request.Context(), &updateDTO, id)
-// 	if err != nil {
-// 		if err.Error() == fmt.Sprintf("article with ID %d not found", id) {
-// 			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err.Error()})
-// 			return
-// 		}
-// 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-// 		return
-// 	}
-
-// 	c.JSON(http.StatusOK, gin.H{
-// 		"message": "Article update successful",
-// 	})
-// }
 
 func (ac *ArticleControllerImpl) DeleteArticle(c *gin.Context) {
 	idStr := c.Param("id")

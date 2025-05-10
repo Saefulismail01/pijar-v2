@@ -1,65 +1,3 @@
-// package config
-//
-// import (
-// 	"fmt"
-// 	"os"
-// 	"github.com/joho/godotenv"
-// 	"log"
-// )
-//
-// type DBConfig struct {
-// 	Host     string
-// 	Port     string
-// 	User     string
-// 	Password string
-// 	DBName   string
-// 	Driver   string
-// }
-//
-// type APIConfig struct {
-// 	ApiPort string
-// }
-//
-// type Config struct {
-// 	DBConfig
-// 	APIConfig
-// }
-//
-// func (c *Config) readConfig() error {
-// 	err := godotenv.Load()
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-//
-// 	c.DBConfig = DBConfig{
-// 		Host:     os.Getenv("DB_HOST"),
-// 		Port:     os.Getenv("DB_PORT"),
-// 		User:     os.Getenv("DB_USER"),
-// 		Password: os.Getenv("DB_PASS"),
-// 		DBName:   os.Getenv("DB_NAME"),
-// 		Driver:   os.Getenv("DB_DRIVER"),
-// 	}
-//
-// 	c.APIConfig = APIConfig{
-// 		ApiPort: os.Getenv("API_PORT"),
-// 	}
-//
-// 	if c.Host == "" || c.Port == "" || c.User == "" || c.Password == "" || c.DBName == "" || c.ApiPort == "" {
-// 		return fmt.Errorf("required config")
-// 	}
-// 	return nil
-// }
-//
-// func NewConfig() (*Config, error) {
-// 	cfg := &Config{}
-// 	if err := cfg.readConfig(); err != nil {
-// 		return nil, err
-// 	}
-// 	return cfg, nil
-// }
-//
-//
-
 package config
 
 import (
@@ -73,9 +11,9 @@ import (
 type DBConfig struct {
 	Host     string
 	Port     string
-	Database string
-	Username string
+	User     string
 	Password string
+	DBName   string
 	Driver   string
 }
 
@@ -89,86 +27,18 @@ type Config struct {
 	APIConfig
 }
 
-func NewConfig() (*Config, error) {
-	cfg := &Config{}
-	err := cfg.readConfig()
-	if err != nil {
-		return nil, err
-	}
-	return cfg, nil
-}
-
-<<<<<<< HEAD
-// package config
-//
-// import (
-// 	"fmt"
-// 	"os"
-// )
-//
-// type DBConfig struct {
-// 	Host     string
-// 	Port     string
-// 	Database string
-// 	Username string
-// 	Password string
-// 	Driver   string
-// }
-//
-// type APIConfig struct {
-// 	APIHost string
-// 	APIPort string
-// }
-//
-// type Config struct {
-// 	DBConfig
-// 	APIConfig
-// }
-//
-// func NewConfig() (*Config, error) {
-// 	cfg := &Config{}
-// 	err := cfg.readConfig()
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return cfg, nil
-// }
-//
-// func (c *Config) readConfig() error {
-// 	c.DBConfig = DBConfig{
-// 		Host:     os.Getenv("DB_HOST"),
-// 		Port:     os.Getenv("DB_PORT"),
-// 		Database: os.Getenv("DB_NAME"),
-// 		Username: os.Getenv("DB_USER"),
-// 		Password: os.Getenv("DB_PASS"),
-// 		Driver:   os.Getenv("DB_DRIVER"),
-// 	}
-//
-// 	c.APIConfig = APIConfig{
-// 		APIHost: os.Getenv("API_HOST"),
-// 		APIPort: os.Getenv("API_PORT"),
-// 	}
-//
-// 	if c.Host == "" ||
-// 		c.Port == "" ||
-// 		c.Database == "" ||
-// 		c.Username == "" ||
-// 		c.Password == "" ||
-// 		c.Driver == "" ||
-// 		c.APIHost == "" ||
-// 		c.APIPort == "" {
-// 		return fmt.Errorf("required config")
-// 	}
-// 	return nil
-// }
-=======
 func (c *Config) readConfig() error {
+	err := godotenv.Load()
+	if err != nil {
+		return fmt.Errorf("error loading .env file: %v", err)
+	}
+
 	c.DBConfig = DBConfig{
 		Host:     os.Getenv("DB_HOST"),
 		Port:     os.Getenv("DB_PORT"),
-		Database: os.Getenv("DB_NAME"),
-		Username: os.Getenv("DB_USER"),
+		User:     os.Getenv("DB_USER"),
 		Password: os.Getenv("DB_PASS"),
+		DBName:   os.Getenv("DB_NAME"),
 		Driver:   os.Getenv("DB_DRIVER"),
 	}
 
@@ -177,16 +47,18 @@ func (c *Config) readConfig() error {
 		APIPort: os.Getenv("API_PORT"),
 	}
 
-	if c.Host == "" ||
-		c.Port == "" ||
-		c.Database == "" ||
-		c.Username == "" ||
-		c.Password == "" ||
-		c.Driver == "" ||
-		c.APIHost == "" ||
-		c.APIPort == "" {
-		return fmt.Errorf("required config")
+	if c.Host == "" || c.Port == "" || c.User == "" || c.Password == "" || c.DBName == "" || c.APIPort == "" {
+		return fmt.Errorf("missing required environment variables")
 	}
+
 	return nil
 }
->>>>>>> 933d50963dacd0f38392ceae7520b0f758f883df
+
+func NewConfig() (*Config, error) {
+	cfg := &Config{}
+	if err := cfg.readConfig(); err != nil {
+		log.Printf("Configuration error: %v", err)
+		return nil, err
+	}
+	return cfg, nil
+}

@@ -14,34 +14,16 @@ import (
 )
 
 func (uc *UserController) Route() {
-	// User routes
-	uc.rg.POST("/users", uc.CreateUserController)
-	uc.rg.GET("/users", uc.GetAllUsersController)
-	uc.rg.GET("/users/:id", uc.GetUserByIDController)
-	uc.rg.PUT("/users/:id", uc.UpdateUserController)
-	uc.rg.DELETE("/users/:id", uc.DeleteUserController)
-	uc.rg.GET("/users/email/:email", uc.GetUserByEmail)
+	// // User routes
+	// uc.rg.POST("/users", uc.CreateUserController)
+	// uc.rg.GET("/users", uc.GetAllUsersController)
+	// uc.rg.GET("/users/:id", uc.GetUserByIDController)
+	// uc.rg.PUT("/users/:id", uc.UpdateUserController)
+	// uc.rg.DELETE("/users/:id", uc.DeleteUserController)
+	// uc.rg.GET("/users/email/:email", uc.GetUserByEmail)
 
 	uc.rg.POST("/goals/complete-article", uc.authMiddleware.RequireToken("USER"))
-}
 
-type UserController struct {
-	UserUsecase    usecase.UserUsecase
-	rg             *gin.RouterGroup
-	jwtService     service.JwtService
-	authMiddleware *middleware.AuthMiddleware
-}
-
-func NewUserController(rg *gin.RouterGroup, userUsecase usecase.UserUsecase, jwtService service.JwtService, authMiddleware *middleware.AuthMiddleware) *UserController {
-	return &UserController{
-		UserUsecase:    userUsecase,
-		rg:             rg,
-		jwtService:     jwtService,
-		authMiddleware: authMiddleware,
-	}
-}
-
-func (uc *UserController) Route() {
 	// Admin-only protected routes with JWT authentication
 	adminProtected := uc.rg.Group("/users")
 	adminProtected.Use(uc.authMiddleware.RequireToken("ADMIN"))
@@ -58,9 +40,25 @@ func (uc *UserController) Route() {
 
 	// User profile routes - accessible by any authenticated user
 	userProfile := uc.rg.Group("/profile")
-	userProfile.Use(uc.authMiddleware.RequireToken("USER", "ADMIN")) // Both users and admins can access
+	userProfile.Use(uc.authMiddleware.RequireToken("USER", "ADMIN")) 
 	userProfile.GET("/", uc.GetOwnProfileController)
 	userProfile.PUT("/", uc.UpdateOwnProfileController)
+}
+
+type UserController struct {
+	UserUsecase    usecase.UserUsecase
+	rg             *gin.RouterGroup
+	jwtService     service.JwtService
+	authMiddleware *middleware.AuthMiddleware
+}
+
+func NewUserController(rg *gin.RouterGroup, userUsecase usecase.UserUsecase, jwtService service.JwtService, authMiddleware *middleware.AuthMiddleware) *UserController {
+	return &UserController{
+		UserUsecase:    userUsecase,
+		rg:             rg,
+		jwtService:     jwtService,
+		authMiddleware: authMiddleware,
+	}
 }
 
 func (uc *UserController) CreateUserController(c *gin.Context) {

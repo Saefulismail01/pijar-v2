@@ -16,7 +16,7 @@ type ArticleRepository interface {
 	CreateArticle(ctx context.Context, tx *sql.Tx, article *model.Article) error
 	GenerateArticle(ctx context.Context, tx *sql.Tx, topicID int) ([]model.Article, error)
 	GetAllArticles(ctx context.Context) ([]model.Article, error)
-	GetPaginatedArticles(ctx context.Context, page, limit int) ([]model.Article, int64, error)
+	GetPaginatedArticles(ctx context.Context, limit, offset int) ([]model.Article, int64, error)
 	GetArticleByID(ctx context.Context, id int) (*model.Article, error)
 	GetArticleByTitle(ctx context.Context, title string) (*model.Article, error)
 	SearchArticlesByTitle(ctx context.Context, title string) ([]model.Article, error)
@@ -155,27 +155,23 @@ func (r *articleRepository) CreateArticle(ctx context.Context, tx *sql.Tx, artic
 }
 
 // Implementasi fungsi baru untuk paginasi
-func (r *articleRepository) GetPaginatedArticles(ctx context.Context, page, limit int) ([]model.Article, int64, error) {
-	offset := (page - 1) * limit
-
-	// Get total count
-	var totalItems int64
+func (r *articleRepository) GetPaginatedArticles(ctx context.Context, limit, offset int) ([]model.Article, int64, error) {
+	var total int64
 	countQuery := "SELECT COUNT(*) FROM articles"
-	err := r.db.QueryRowContext(ctx, countQuery).Scan(&totalItems)
+	err := r.db.QueryRowContext(ctx, countQuery).Scan(&total)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to count articles: %w", err)
+		return nil, 0, err
 	}
 
-	// Get paginated data
 	query := `
-        SELECT id, title, content, source, topic_id, created_at 
-        FROM articles 
-        ORDER BY created_at DESC
-        LIMIT $1 OFFSET $2`
+		SELECT id, title, content, source, topic_id, created_at 
+		FROM articles 
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2`
 
 	rows, err := r.db.QueryContext(ctx, query, limit, offset)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to get articles: %w", err)
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -191,16 +187,11 @@ func (r *articleRepository) GetPaginatedArticles(ctx context.Context, page, limi
 			&article.CreatedAt,
 		)
 		if err != nil {
-			return nil, 0, fmt.Errorf("failed to scan article: %w", err)
+			return nil, 0, err
 		}
 		articles = append(articles, article)
 	}
-
-	if err = rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("error iterating articles: %w", err)
-	}
-
-	return articles, totalItems, nil
+	return articles, total, nil
 }
 
 // Fungsi GetAllArticles tetap ada dan tidak berubah untuk kompatibilitas
