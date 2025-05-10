@@ -54,21 +54,25 @@ func (p *paymentUsecase) CreatePayment(req model.PaymentRequest) (model.Transact
 
 	// Generate order ID and set default quantity
 	orderID := p.midtransService.GenerateOrderID()
-	quantity := 1
 
 	// Create item for Midtrans
 	items := []model.Item{
 		{
-			ID:                  strconv.Itoa(product.ID),
-			Name:                product.Name,
-			Price:               product.Price,
-			Quantity:            quantity,
-			MonthlySubscription: 1,
+			ID:        strconv.Itoa(product.ID),
+			Name:      product.Name,
+			Price:     product.Price,
+			Quantity:  1,
 		},
 	}
 
 	// Calculate total amount
-	totalAmount := product.Price * quantity
+	totalAmount := product.Price * 1
+
+	// Validate that total amount matches item total
+	itemTotal := product.Price * 1
+	if totalAmount != itemTotal {
+		return model.Transaction{}, fmt.Errorf("total amount mismatch: expected %d, got %d", itemTotal, totalAmount)
+	}
 
 	// Create Midtrans request with minimal customer details
 	midtransReq := model.MidtransSnapReq{
@@ -80,12 +84,10 @@ func (p *paymentUsecase) CreatePayment(req model.PaymentRequest) (model.Transact
 			GrossAmt: totalAmount,
 		},
 		CustomerDetails: model.CustomerDetails{
-			FirstName: "Customer",
-			LastName:  "",
-			Email:     "",
-			Phone:     "",
+			Name:  "Customer",
+			Phone: "",
 		},
-		Item: items,
+		ItemDetails: items,
 	}
 
 	// Send request to Midtrans
@@ -126,12 +128,12 @@ func (p *paymentUsecase) GetPaymentStatus(id int) (model.Transaction, error) {
 
 	// Check latest status from Midtrans
 	log.Printf("Checking latest status from Midtrans for transaction %d", id)
-	transaction, err = p.ForceCheckAndUpdateStatus(id)
+	updatedTransaction, err := p.ForceCheckAndUpdateStatus(id)
 	if err != nil {
 		log.Printf("Warning: Could not check Midtrans status: %v", err)
+		return transaction, nil
 	}
-
-	return transaction, nil
+	return updatedTransaction, nil
 }
 
 // ProcessCallback handles Midtrans callback and updates transaction status
@@ -197,11 +199,11 @@ func (p *paymentUsecase) ForceCheckAndUpdateStatus(id int) (model.Transaction, e
 	}
 	if newStatus != transaction.Status {
 		log.Printf("Updating transaction %d status from %s to %s", id, transaction.Status, newStatus)
-		
+
 		// Update transaksi di database
 		transaction.Status = newStatus
 		transaction.UpdatedAt = time.Now()
-		
+
 		err = p.transactionRepo.UpdateTransactionStatus(transaction.ID, newStatus)
 		if err != nil {
 			return transaction, fmt.Errorf("error updating transaction status: %w", err)

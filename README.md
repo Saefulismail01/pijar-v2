@@ -221,5 +221,4 @@ Developer by Team 3 Incubation Class Enigma Camp
 - Andika Prasetya
 - Mhammad Hammas
 - Indiyana Noviyanti
-
 ---
