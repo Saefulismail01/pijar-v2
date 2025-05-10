@@ -23,8 +23,6 @@ type DailyGoalRepository interface {
 	CountCompletedProgress(ctx context.Context, goalID int, userID int) (int, error)
 	DeleteGoal(ctx context.Context, goalID int, userID int) error
 	ValidateArticleIDs(ctx context.Context, articleIDs []int64) ([]int64, error)
-	GetPendingArticlesCount(userID int) (int, error)
-	GetAllUsersWithPendingArticles() ([]model.Users, error)
 }
 
 type dailyGoalsRepository struct {
@@ -369,52 +367,6 @@ func (r *dailyGoalsRepository) DeleteGoal(ctx context.Context, goalID int, userI
 	}
 
 	return nil
-}
-
-func (r *dailyGoalsRepository) GetPendingArticlesCount(userID int) (int, error) {
-	var count int
-	err := r.db.QueryRow(`
-        SELECT COUNT(*) 
-        FROM (
-            SELECT ug.id AS goal_id, unnest(ug.articles_to_read) AS article_id
-            FROM user_goals ug
-            WHERE ug.user_id = $1
-        ) goals
-        LEFT JOIN user_goals_progress ugp 
-            ON goals.goal_id = ugp.id_goals 
-            AND goals.article_id = ugp.id_article
-        WHERE ugp.completed IS NULL OR ugp.completed = false`,
-		userID).Scan(&count)
-	return count, err
-}
-
-func (r *dailyGoalsRepository) GetAllUsersWithPendingArticles() ([]model.Users, error) {
-	rows, err := r.db.Query(`
-        SELECT DISTINCT u.id, u.name 
-        FROM users u
-        JOIN user_goals ug ON u.id = ug.user_id
-        WHERE EXISTS (
-            SELECT 1
-            FROM unnest(ug.articles_to_read) article_id
-            LEFT JOIN user_goals_progress ugp 
-                ON ug.id = ugp.id_goals 
-                AND article_id = ugp.id_article
-            WHERE ugp.completed IS NULL OR ugp.completed = false
-        )`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var users []model.Users
-	for rows.Next() {
-		var user model.Users
-		if err := rows.Scan(&user.ID, &user.Name); err != nil {
-			return nil, err
-		}
-		users = append(users, user)
-	}
-	return users, nil
 }
 
 // HELPER FUNCTION =================================

@@ -13,14 +13,14 @@ import (
 
 type TopicControllerImpl struct {
 	topicUsecase usecase.TopicUsecase
-	rg           gin.RouterGroup
+	rg           *gin.RouterGroup
 	aM           middleware.AuthMiddleware
 }
 
 func NewTopicController(tu usecase.TopicUsecase, rg *gin.RouterGroup, aM middleware.AuthMiddleware) *TopicControllerImpl {
 	return &TopicControllerImpl{
 		topicUsecase: tu,
-		rg:           *rg,
+		rg:           rg,
 		aM:           aM,
 	}
 }
