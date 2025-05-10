@@ -62,6 +62,11 @@ func (uc *dailyGoalUseCase) CompleteArticleProgress(
 		return dto.GoalProgressInfo{}, fmt.Errorf("failed to complete article progress: %v", err)
 	}
 
+	err = uc.repo.UpdateGoalStatus(ctx, goalID, userID)
+	if err != nil {
+		return dto.GoalProgressInfo{}, fmt.Errorf("failed to update goal status: %v", err)
+	}
+
 	// Get the updated goal
 	updatedGoal, err := uc.repo.GetGoalByID(ctx, goalID, userID)
 	if err != nil {
