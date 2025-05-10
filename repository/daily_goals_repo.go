@@ -19,6 +19,7 @@ type DailyGoalRepository interface {
 	GetGoalsByUserID(ctx context.Context, userID int) ([]model.UserGoal, error)
 	GetGoalProgress(ctx context.Context, goalID int, userID int) ([]dto.ArticleProgress, error)
 	UpdateGoal(ctx context.Context, goal *model.UserGoal, articlesToRead []int64, userID int) (model.UserGoal, error)
+	UpdateGoalStatus(ctx context.Context, goalID int, userID int) error
 	CompleteArticleProgress(ctx context.Context, goalID int, articleID int64, completed bool) error
 	CountCompletedProgress(ctx context.Context, goalID int, userID int) (int, error)
 	DeleteGoal(ctx context.Context, goalID int, userID int) error
@@ -110,7 +111,18 @@ func (r *dailyGoalsRepository) UpdateGoal(
 		return model.UserGoal{}, fmt.Errorf("failed to begin transaction: %v", err)
 	}
 
-	// 1. Update goal in user_goals table
+	var existingID int
+	err = tx.QueryRowContext(
+		ctx,
+		"SELECT id FROM user_goals WHERE id = $1 AND user_id = $2",
+		goal.ID,
+		userID,
+	).Scan(&existingID)
+	if err != nil {
+		tx.Rollback()
+		return model.UserGoal{}, fmt.Errorf("goal tidak ditemukan: %v", err)
+	}
+
 	updateGoalQuery := `
         UPDATE user_goals 
         SET title = $1, task = $2, completed = $3 
@@ -139,14 +151,25 @@ func (r *dailyGoalsRepository) UpdateGoal(
 		return model.UserGoal{}, fmt.Errorf("failed to update goal: %v", err)
 	}
 
-	// 2. Update articles_to_read in user_goals table
-	if articleToRead != nil {
-		updateArticlesQuery := `
-        UPDATE user_goals 
-        SET articles_to_read = $1
-        WHERE id = $2 AND user_id = $3
-        RETURNING articles_to_read
+	insertProgressQuery := `
+        INSERT INTO user_goals_progress (id_goals, id_article, completed, date_completed)
+        SELECT $1, article_id, false, NULL
+        FROM unnest($2::bigint[]) AS article_id
+        ON CONFLICT (id_goals, id_article) DO NOTHING
     `
+	_, err = tx.ExecContext(ctx, insertProgressQuery, goal.ID, pq.Array(articleToRead))
+	if err != nil {
+		tx.Rollback()
+		return model.UserGoal{}, fmt.Errorf("gagal insert progress baru: %v", err)
+	}
+
+	if len(articleToRead) > 0 {
+		updateArticlesQuery := `
+            UPDATE user_goals 
+            SET articles_to_read = $1
+            WHERE id = $2 AND user_id = $3
+            RETURNING articles_to_read
+        `
 		err = tx.QueryRowContext(
 			ctx,
 			updateArticlesQuery,
@@ -157,6 +180,59 @@ func (r *dailyGoalsRepository) UpdateGoal(
 		if err != nil {
 			tx.Rollback()
 			return model.UserGoal{}, fmt.Errorf("failed to update articles: %v", err)
+		}
+	}
+	// delete article progress doesnt exists in new list
+	if articleToRead != nil {
+		deleteProgressQuery := `
+        DELETE FROM user_goals_progress 
+        WHERE id_goals = $1 
+        AND id_article NOT IN (SELECT unnest($2::bigint[]))
+    `
+		_, err = tx.ExecContext(
+			ctx,
+			deleteProgressQuery,
+			goal.ID,
+			pq.Array(articleToRead),
+		)
+		if err != nil {
+			tx.Rollback()
+			return model.UserGoal{}, fmt.Errorf("failed to clean progress: %v", err)
+		}
+
+		// Update goal status based on artikel
+		var completedCount int
+		err = tx.QueryRowContext(
+			ctx,
+			`SELECT COUNT(*) FROM user_goals_progress 
+         WHERE id_goals = $1 AND completed = true`,
+			goal.ID,
+		).Scan(&completedCount)
+		if err != nil {
+			tx.Rollback()
+			return model.UserGoal{}, err
+		}
+
+		var totalArticles int
+		err = tx.QueryRowContext(
+			ctx,
+			"SELECT cardinality(articles_to_read) FROM user_goals WHERE id = $1",
+			goal.ID,
+		).Scan(&totalArticles)
+		if err != nil {
+			tx.Rollback()
+			return model.UserGoal{}, err
+		}
+
+		_, err = tx.ExecContext(
+			ctx,
+			"UPDATE user_goals SET completed = $1 WHERE id = $2",
+			completedCount == totalArticles,
+			goal.ID,
+		)
+		if err != nil {
+			tx.Rollback()
+			return model.UserGoal{}, err
 		}
 	}
 
@@ -472,4 +548,32 @@ func (r *dailyGoalsRepository) ValidateArticleIDs(ctx context.Context, articleID
 	}
 
 	return invalidIDs, nil
+}
+
+func (r *dailyGoalsRepository) UpdateGoalStatus(ctx context.Context, goalID int, userID int) error {
+	// Hitung progress terbaru berdasarkan articles_to_read saat ini
+	completedCount, err := r.CountCompletedProgress(ctx, goalID, userID)
+	if err != nil {
+		return err
+	}
+
+	// Dapatkan total artikel saat ini
+	var totalArticles int
+	err = r.db.QueryRowContext(
+		ctx,
+		"SELECT cardinality(articles_to_read) FROM user_goals WHERE id = $1",
+		goalID,
+	).Scan(&totalArticles)
+	if err != nil {
+		return err
+	}
+
+	// Update status completed
+	_, err = r.db.ExecContext(
+		ctx,
+		"UPDATE user_goals SET completed = $1 WHERE id = $2",
+		completedCount == totalArticles,
+		goalID,
+	)
+	return err
 }
