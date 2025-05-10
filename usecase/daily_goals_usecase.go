@@ -151,59 +151,51 @@ func (uc *dailyGoalUseCase) CreateGoal(ctx context.Context, userID int, title st
 }
 
 func (uc *dailyGoalUseCase) UpdateGoal(
-	ctx context.Context,
-	userID int,
-	goalID int,
-	title string,
-	task string,
-	completed bool,
-	newArticlesToRead []int64,
+    ctx context.Context,
+    userID int,
+    goalID int,
+    title string,
+    task string,
+    completed bool,
+    newArticlesToRead []int64, 
 ) (dto.GoalProgressInfo, error) {
-	// Validate article IDs
-	if len(newArticlesToRead) > 0 {
-		invalidIDs, err := uc.repo.ValidateArticleIDs(ctx, newArticlesToRead)
-		if err != nil {
-			return dto.GoalProgressInfo{}, fmt.Errorf("failed to validate articles: %v", err)
-		}
+    // validate article if only user add new article
+    if newArticlesToRead != nil {
+        invalidIDs, err := uc.repo.ValidateArticleIDs(ctx, newArticlesToRead)
+        if err != nil {
+            return dto.GoalProgressInfo{}, fmt.Errorf("failed to validate articles: %v", err)
+        }
+        if len(invalidIDs) > 0 {
+            return dto.GoalProgressInfo{}, fmt.Errorf("invalid article IDs: %v", invalidIDs)
+        }
+    }
 
-		if len(invalidIDs) > 0 {
-			return dto.GoalProgressInfo{}, fmt.Errorf("invalid article IDs: %v", invalidIDs)
-		}
-	}
-	// Get the existing goal
-	existingGoal, err := uc.repo.GetGoalByID(ctx, goalID, userID)
-	if err != nil {
-		return dto.GoalProgressInfo{}, fmt.Errorf("failed to get existing goal: %v", err)
-	}
+    // take an existing data
+    existingGoal, err := uc.repo.GetGoalByID(ctx, goalID, userID)
+    if err != nil {
+        return dto.GoalProgressInfo{}, fmt.Errorf("failed to get existing goal: %v", err)
+    }
 
-	// Merge existing articles with new ones, removing duplicates
-	mergedArticles := make(map[int64]bool)
-	for _, id := range existingGoal.ArticlesToRead {
-		mergedArticles[id] = true
-	}
-	for _, id := range newArticlesToRead {
-		mergedArticles[id] = true
-	}
+    // full replacement logic
+    var articlesToRead []int64
+    if newArticlesToRead != nil {
+        articlesToRead = newArticlesToRead // new article 
+    } else {
+        articlesToRead = existingGoal.ArticlesToRead // old article
+    }
 
-	// Convert back to slice
-	var articlesToRead []int64
-	for id := range mergedArticles {
-		articlesToRead = append(articlesToRead, id)
-	}
+    updatedGoal := model.UserGoal{
+        ID:             goalID,
+        Title:          title,
+        Task:           task,
+        ArticlesToRead: articlesToRead,
+        Completed:      completed,
+    }
 
-	updatedGoal := model.UserGoal{
-		ID:             goalID,
-		Title:          title,
-		Task:           task,
-		ArticlesToRead: articlesToRead,
-		Completed:      completed,
-	}
-
-	// Update the goal with merged articles
-	result, err := uc.repo.UpdateGoal(ctx, &updatedGoal, articlesToRead, userID)
-	if err != nil {
-		return dto.GoalProgressInfo{}, fmt.Errorf("usecase error: %v", err)
-	}
+    result, err := uc.repo.UpdateGoal(ctx, &updatedGoal, articlesToRead, userID)
+    if err != nil {
+        return dto.GoalProgressInfo{}, fmt.Errorf("usecase error: %v", err)
+    }
 
 	// Get the progress information
 	progress, err := uc.repo.GetGoalProgress(ctx, goalID, userID)
