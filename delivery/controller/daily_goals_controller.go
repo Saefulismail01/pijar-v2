@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -63,13 +64,19 @@ func (c *dailyGoalsController) Route() {
 func (c *dailyGoalsController) CreateGoal(ctx *gin.Context) {
 	userID, err := strconv.Atoi(ctx.Param("user_id"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Invalid user ID",
+			Error:   err.Error(),
+		})
 		return
 	}
 
 	var req dto.CreateGoalRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Invalid request body",
+			Error:   err.Error(),
+		})
 		return
 	}
 
@@ -78,10 +85,16 @@ func (c *dailyGoalsController) CreateGoal(ctx *gin.Context) {
 	createdGoal, err := c.uc.CreateGoal(ctx.Request.Context(), userID, req.Title, req.Task, req.ArticlesToRead)
 	if err != nil {
 		if strings.Contains(err.Error(), "invalid article IDs") {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				Message: "Invalid article IDs",
+				Error:   err.Error(),
+			})
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create goal: " + err.Error()})
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Failed to create goal",
+			Error:   err.Error(),
+		})
 		return
 	}
 
@@ -94,7 +107,10 @@ func (c *dailyGoalsController) CreateGoal(ctx *gin.Context) {
 		CreatedAt:      createdGoal.CreatedAt.Format("2006-01-02 15:04:05"),
 	}
 
-	ctx.JSON(http.StatusCreated, response)
+	ctx.JSON(http.StatusOK, dto.Response{
+		Message: "Goal created successfully",
+		Data:    response,
+	})
 }
 
 // @Summary      Complete an article progress
@@ -112,23 +128,33 @@ func (c *dailyGoalsController) CompleteGoalProgress(ctx *gin.Context) {
 	// Parse request body
 	var req dto.CompleteArticleRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Invalid request body",
+			Error:   err.Error(),
+		})
 		return
 	}
 
 	// Validate IDs
 	if req.UserID <= 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Invalid user ID",
+		})
 		return
 	}
 
 	if req.GoalID <= 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid goal ID"})
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Invalid goal ID",
+		})
 		return
 	}
 
 	if req.ArticleID <= 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid article ID"})
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Invalid article ID",
+		})
 		return
 	}
 
@@ -137,10 +163,15 @@ func (c *dailyGoalsController) CompleteGoalProgress(ctx *gin.Context) {
 	if err != nil {
 		// Check if the error is due to article not found in goal
 		if err.Error() == "artikel tidak termasuk dalam goal ini" {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				Error: err.Error(),
+			})
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to complete article progress: " + err.Error()})
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Failed to complete article progress",
+			Error:   err.Error(),
+		})
 		return
 	}
 
@@ -174,7 +205,12 @@ func (c *dailyGoalsController) CompleteGoalProgress(ctx *gin.Context) {
 		TotalArticles:  len(articles),
 	}
 
-	ctx.JSON(http.StatusOK, response)
+	message := fmt.Sprintf("Article %v is finish", req.ArticleID)
+
+	ctx.JSON(http.StatusOK, dto.Response{
+		Message: message,
+		Data:    response,
+	})
 }
 
 // @Summary      Get user goals
@@ -189,19 +225,23 @@ func (c *dailyGoalsController) CompleteGoalProgress(ctx *gin.Context) {
 func (c *dailyGoalsController) GetUserGoals(ctx *gin.Context) {
 	userID, err := strconv.Atoi(ctx.Param("user_id"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Invalid user ID",
+		})
 		return
 	}
 
 	goals, err := c.uc.GetUserGoals(ctx.Request.Context(), userID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Error: err.Error(),
+		})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"status": "success",
-		"data":   goals,
+	ctx.JSON(http.StatusOK, dto.Response{
+		Message: "Get user goals successful",
+		Data:    goals,
 	})
 }
 
@@ -220,7 +260,9 @@ func (c *dailyGoalsController) GetUserGoals(ctx *gin.Context) {
 func (c *dailyGoalsController) UpdateGoal(ctx *gin.Context) {
 	userID, err := strconv.Atoi(ctx.Param("user_id"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Invalid user ID",
+		})
 		return
 	}
 
@@ -228,14 +270,17 @@ func (c *dailyGoalsController) UpdateGoal(ctx *gin.Context) {
 	goalID := ctx.Param("id")
 	gID, err := strconv.Atoi(goalID)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid goal ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": "Invalid goal ID"})
 		return
 	}
 
 	// Bind request body
 	var req dto.UpdateGoalRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Invalid request body",
+			Error:   err.Error(),
+		})
 		return
 	}
 
@@ -252,10 +297,15 @@ func (c *dailyGoalsController) UpdateGoal(ctx *gin.Context) {
 	if err != nil {
 		// Handle article IDs error from usecase
 		if strings.Contains(err.Error(), "invalid article IDs") {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				Message: err.Error(),
+			})
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update goal: " + err.Error()})
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Failed to update goal",
+			Error:   err.Error(),
+		})
 		return
 	}
 
@@ -289,7 +339,10 @@ func (c *dailyGoalsController) UpdateGoal(ctx *gin.Context) {
 		TotalArticles:  len(articles),
 	}
 
-	ctx.JSON(http.StatusOK, response)
+	ctx.JSON(http.StatusOK, dto.Response{
+		Message: "Update user goals successful",
+		Data:    response,
+	})
 }
 
 // @Summary      Delete a goal
@@ -306,14 +359,18 @@ func (c *dailyGoalsController) DeleteGoal(ctx *gin.Context) {
 	// Get user_id from URL
 	userID, err := strconv.Atoi(ctx.Param("user_id"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Invalid user ID",
+		})
 		return
 	}
 
 	// Get goal_id from URL
 	goalID, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid goal ID"})
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Invalid goal ID",
+		})
 		return
 	}
 
@@ -322,12 +379,19 @@ func (c *dailyGoalsController) DeleteGoal(ctx *gin.Context) {
 	if err != nil {
 		// Handle specific errors
 		if strings.Contains(err.Error(), "goal not found") {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "Goal is not found"})
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"message": "Goal is not found",
+			})
 		} else {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete goal: " + err.Error()})
+			ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+				Message: "Failed to delete goal",
+				Error:   err.Error(),
+			})
 		}
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"message": "Goal successfully deleted"})
+	ctx.JSON(http.StatusOK, dto.Response{
+		Message: "Goal deleted successfully",
+	})
 }
