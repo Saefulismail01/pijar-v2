@@ -71,9 +71,12 @@ func (h *SessionHandler) HandleStartSession(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.StartSessionResponse{
-		SessionID: sessionID,
-		Response:  response,
+	c.JSON(http.StatusOK, dto.Response{
+		Message: "Session started successfully",
+		Data: dto.StartSessionResponse{
+			SessionID: sessionID,
+			Response:  response,
+		},
 	})
 }
 
@@ -115,9 +118,12 @@ func (h *SessionHandler) HandleContinueSession(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.StartSessionResponse{
-		SessionID: sessionID,
-		Response:  response,
+	c.JSON(http.StatusOK, dto.Response{
+		Message: "Session continued successfully",
+		Data: dto.StartSessionResponse{
+			SessionID: sessionID,
+			Response:  response,
+		},
 	})
 }
 
@@ -170,9 +176,12 @@ func (h *SessionHandler) HandleGetSessionHistory(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.SessionHistoryResponse{
-		SessionID: sessionID,
-		Messages:  history,
+	c.JSON(http.StatusOK, dto.Response{
+		Message: "Session history retrieved successfully",
+		Data: dto.SessionHistoryResponse{
+			SessionID: sessionID,
+			Messages:  history,
+		},
 	})
 }
 
@@ -196,8 +205,9 @@ func (h *SessionHandler) HandleGetUserSessions(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"sessions": sessions,
+	c.JSON(http.StatusOK, dto.Response{
+		Message: "User sessions retrieved successfully",
+		Data:    sessions,
 	})
 }
 
