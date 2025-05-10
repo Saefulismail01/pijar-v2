@@ -9,13 +9,15 @@ import (
 	"time"
 )
 
+
 type UserRepo struct {
-	DB *sql.DB
+    DB *sql.DB
 }
 
-func NewUserRepo(db *sql.DB) *UserRepo {
-	return &UserRepo{DB: db}
+func NewUserRepo (db *sql.DB) *UserRepo {
+    return &UserRepo{DB: db}
 }
+
 
 type UserRepoInterface interface {
 	IsEmailExists(email string) (bool, error)
@@ -25,8 +27,6 @@ type UserRepoInterface interface {
 	UpdateUser(user model.Users) (model.Users, error)
 	DeleteUser(id int) error
 	GetUserByEmail(email string) (model.Users, error)
-	SaveDeviceToken(userID int, token, platform string) error
-	GetDeviceTokens(userID int) ([]string, error)
 }
 
 // Ensure *UserRepo implements UserRepoInterface
@@ -81,6 +81,8 @@ func (r *UserRepo) CreateUser(user model.Users) (model.Users, error) {
 	fmt.Println("User successfully registered!")
 	return user, nil
 }
+
+
 
 // GetAllUser
 func (r *UserRepo) GetAllUsers() ([]model.Users, error) {
@@ -152,6 +154,8 @@ func (r *UserRepo) GetUserByID(id int) (model.Users, error) {
 	return user, nil
 }
 
+
+
 // UpdateUser updates the user details in the database
 func (r *UserRepo) UpdateUser(user model.Users) (model.Users, error) {
 	// Start a transaction
@@ -185,6 +189,8 @@ func (r *UserRepo) UpdateUser(user model.Users) (model.Users, error) {
 	return updatedUser, nil
 }
 
+
+
 // DeleteUser deletes a user from the database by ID
 func (r *UserRepo) DeleteUser(id int) error {
 	tx, err := r.DB.Begin()
@@ -200,7 +206,7 @@ func (r *UserRepo) DeleteUser(id int) error {
 		return fmt.Errorf("failed to delete user: %v", err)
 	}
 
-	//validasi Delete success
+    //validasi Delete success
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
 		tx.Rollback()
@@ -237,12 +243,12 @@ func (r *UserRepo) GetUserByEmail(email string) (model.Users, error) {
 		&user.UpdatedAt,
 	)
 	// if err != nil {
-	//     if errors.Is(err, sql.ErrNoRows) {
-	//         return model.Users{}, nil
-	//     }
-	//     return model.Users{}, err
-	// }
-	// return user, nil
+    //     if errors.Is(err, sql.ErrNoRows) {
+    //         return model.Users{}, nil 
+    //     }
+    //     return model.Users{}, err 
+    // }
+    // return user, nil
 	if err != nil {
 		log.Println("ERROR GetUserByEmail:", err)
 		return model.Users{}, err
@@ -251,3 +257,7 @@ func (r *UserRepo) GetUserByEmail(email string) (model.Users, error) {
 	log.Println("User ditemukan:", user.Email)
 	return user, nil
 }
+
+
+
+

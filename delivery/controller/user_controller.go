@@ -13,18 +13,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (uc *UserController) Route() {
-	// User routes
-	uc.rg.POST("/users", uc.CreateUserController)
-	uc.rg.GET("/users", uc.GetAllUsersController)
-	uc.rg.GET("/users/:id", uc.GetUserByIDController)
-	uc.rg.PUT("/users/:id", uc.UpdateUserController)
-	uc.rg.DELETE("/users/:id", uc.DeleteUserController)
-	uc.rg.GET("/users/email/:email", uc.GetUserByEmail)
-
-	uc.rg.POST("/goals/complete-article", uc.authMiddleware.RequireToken("USER"))
-}
-
 type UserController struct {
 	UserUsecase    usecase.UserUsecase
 	rg             *gin.RouterGroup
