@@ -44,7 +44,12 @@ func NewGoalUseCase(repo repository.DailyGoalRepository) DailyGoalUseCase {
 	return &dailyGoalUseCase{repo: repo}
 }
 
-func (uc *dailyGoalUseCase) CompleteArticleProgress(ctx context.Context, goalID int, articleID int, userID int) (dto.GoalProgressInfo, error) {
+func (uc *dailyGoalUseCase) CompleteArticleProgress(
+	ctx context.Context,
+	goalID int,
+	articleID int,
+	userID int,
+) (dto.GoalProgressInfo, error) {
 	// Get the goal first to verify it exists and belongs to the user
 	goal, err := uc.repo.GetGoalByID(ctx, goalID, userID)
 	if err != nil {
@@ -151,51 +156,51 @@ func (uc *dailyGoalUseCase) CreateGoal(ctx context.Context, userID int, title st
 }
 
 func (uc *dailyGoalUseCase) UpdateGoal(
-    ctx context.Context,
-    userID int,
-    goalID int,
-    title string,
-    task string,
-    completed bool,
-    newArticlesToRead []int64, 
+	ctx context.Context,
+	userID int,
+	goalID int,
+	title string,
+	task string,
+	completed bool,
+	newArticlesToRead []int64,
 ) (dto.GoalProgressInfo, error) {
-    // validate article if only user add new article
-    if newArticlesToRead != nil {
-        invalidIDs, err := uc.repo.ValidateArticleIDs(ctx, newArticlesToRead)
-        if err != nil {
-            return dto.GoalProgressInfo{}, fmt.Errorf("failed to validate articles: %v", err)
-        }
-        if len(invalidIDs) > 0 {
-            return dto.GoalProgressInfo{}, fmt.Errorf("invalid article IDs: %v", invalidIDs)
-        }
-    }
+	// validate article if only user add new article
+	if newArticlesToRead != nil {
+		invalidIDs, err := uc.repo.ValidateArticleIDs(ctx, newArticlesToRead)
+		if err != nil {
+			return dto.GoalProgressInfo{}, fmt.Errorf("failed to validate articles: %v", err)
+		}
+		if len(invalidIDs) > 0 {
+			return dto.GoalProgressInfo{}, fmt.Errorf("invalid article IDs: %v", invalidIDs)
+		}
+	}
 
-    // take an existing data
-    existingGoal, err := uc.repo.GetGoalByID(ctx, goalID, userID)
-    if err != nil {
-        return dto.GoalProgressInfo{}, fmt.Errorf("failed to get existing goal: %v", err)
-    }
+	// take an existing data
+	existingGoal, err := uc.repo.GetGoalByID(ctx, goalID, userID)
+	if err != nil {
+		return dto.GoalProgressInfo{}, fmt.Errorf("failed to get existing goal: %v", err)
+	}
 
-    // full replacement logic
-    var articlesToRead []int64
-    if newArticlesToRead != nil {
-        articlesToRead = newArticlesToRead // new article 
-    } else {
-        articlesToRead = existingGoal.ArticlesToRead // old article
-    }
+	// full replacement logic
+	var articlesToRead []int64
+	if newArticlesToRead != nil {
+		articlesToRead = newArticlesToRead // new article
+	} else {
+		articlesToRead = existingGoal.ArticlesToRead // old article
+	}
 
-    updatedGoal := model.UserGoal{
-        ID:             goalID,
-        Title:          title,
-        Task:           task,
-        ArticlesToRead: articlesToRead,
-        Completed:      completed,
-    }
+	updatedGoal := model.UserGoal{
+		ID:             goalID,
+		Title:          title,
+		Task:           task,
+		ArticlesToRead: articlesToRead,
+		Completed:      completed,
+	}
 
-    result, err := uc.repo.UpdateGoal(ctx, &updatedGoal, articlesToRead, userID)
-    if err != nil {
-        return dto.GoalProgressInfo{}, fmt.Errorf("usecase error: %v", err)
-    }
+	result, err := uc.repo.UpdateGoal(ctx, &updatedGoal, newArticlesToRead, userID)
+	if err != nil {
+		return dto.GoalProgressInfo{}, fmt.Errorf("usecase error: %v", err)
+	}
 
 	// Get the progress information
 	progress, err := uc.repo.GetGoalProgress(ctx, goalID, userID)

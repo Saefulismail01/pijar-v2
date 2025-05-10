@@ -159,7 +159,24 @@ func (r *dailyGoalsRepository) UpdateGoal(
 			return model.UserGoal{}, fmt.Errorf("failed to update articles: %v", err)
 		}
 	}
-
+	// delete article progress doesnt exists in new list
+	if articleToRead != nil {
+		deleteProgressQuery := `
+            DELETE FROM user_goals_progress 
+            WHERE id_goals = $1 
+            AND id_article NOT IN (SELECT unnest($2::bigint[]))
+        `
+		_, err = tx.ExecContext(
+			ctx,
+			deleteProgressQuery,
+			goal.ID,
+			pq.Array(articleToRead),
+		)
+		if err != nil {
+			tx.Rollback()
+			return model.UserGoal{}, fmt.Errorf("failed to clean progress: %v", err)
+		}
+	}
 	// Commit transaction
 	if err := tx.Commit(); err != nil {
 		return model.UserGoal{}, fmt.Errorf("failed to commit transaction: %v", err)
