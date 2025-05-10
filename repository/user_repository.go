@@ -29,9 +29,6 @@ type UserRepoInterface interface {
 	GetDeviceTokens(userID int) ([]string, error)
 }
 
-// Ensure *UserRepo implements UserRepoInterface
-var _ UserRepoInterface = (*UserRepo)(nil)
-
 func (r *UserRepo) IsEmailExists(email string) (bool, error) {
 	var exists bool
 	query := `SELECT EXISTS(SELECT 1 FROM users WHERE email = $1);`
@@ -236,14 +233,7 @@ func (r *UserRepo) GetUserByEmail(email string) (model.Users, error) {
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
-	// if err != nil {
-	//     if errors.Is(err, sql.ErrNoRows) {
-	//         return model.Users{}, nil
-	//     }
-	//     return model.Users{}, err
-	// }
-	// return user, nil
-	if err != nil {
+if err != nil {
 		log.Println("ERROR GetUserByEmail:", err)
 		return model.Users{}, err
 	}
