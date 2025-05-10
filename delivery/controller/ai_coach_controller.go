@@ -33,6 +33,7 @@ func (h *SessionHandler) Route() {
 		userRoutes.POST("/start/:user_id", h.HandleStartSession)
 		userRoutes.POST("/continue/:sessionId/:user_id", h.HandleContinueSession)
 		userRoutes.GET("/history/:sessionId/:user_id", h.HandleGetSessionHistory)
+		userRoutes.DELETE("/:sessionId/:user_id", h.HandleDeleteSession)
 	}
 
 	adminRoutes := sessionGroup.Use(h.aM.RequireToken("ADMIN"))
@@ -45,19 +46,28 @@ func (h *SessionHandler) Route() {
 func (h *SessionHandler) HandleStartSession(c *gin.Context) {
 	var req dto.CoachRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Bad Request",
+			Error:   err.Error(),
+		})
 		return
 	}
 
 	userID, err := strconv.Atoi(c.Param("user_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Bad Request",
+			Error:   "invalid user id",
+		})
 		return
 	}
 
 	sessionID, response, err := h.usecase.StartSession(userID, req.UserInput)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Internal Server Error",
+			Error:   err.Error(),
+		})
 		return
 	}
 
@@ -71,25 +81,37 @@ func (h *SessionHandler) HandleStartSession(c *gin.Context) {
 func (h *SessionHandler) HandleContinueSession(c *gin.Context) {
 	sessionID := c.Param("sessionId")
 	if sessionID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Bad Request",
+			Error:   "session_id is required",
+		})
 		return
 	}
 
 	var req dto.ContinueSessionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Bad Request",
+			Error:   err.Error(),
+		})
 		return
 	}
 
 	userID, err := strconv.Atoi(c.Param("user_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Bad Request",
+			Error:   "invalid user id",
+		})
 		return
 	}
 
 	response, err := h.usecase.ContinueSession(userID, sessionID, req.UserInput)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Internal Server Error",
+			Error:   err.Error(),
+		})
 		return
 	}
 
@@ -103,13 +125,19 @@ func (h *SessionHandler) HandleContinueSession(c *gin.Context) {
 func (h *SessionHandler) HandleGetSessionHistory(c *gin.Context) {
 	sessionID := c.Param("sessionId")
 	if sessionID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "session_id is required"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Bad Request",
+			Error:   "session_id is required",
+		})
 		return
 	}
 
 	userID, err := strconv.Atoi(c.Param("user_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Bad Request",
+			Error:   "invalid user id",
+		})
 		return
 	}
 
@@ -118,7 +146,10 @@ func (h *SessionHandler) HandleGetSessionHistory(c *gin.Context) {
 	if limitStr := c.Query("limit"); limitStr != "" {
 		limit, err = strconv.Atoi(limitStr)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid limit parameter"})
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+				Message: "Bad Request",
+				Error:   "invalid limit parameter",
+			})
 			return
 		}
 	}
@@ -126,9 +157,15 @@ func (h *SessionHandler) HandleGetSessionHistory(c *gin.Context) {
 	history, err := h.usecase.GetSessionHistory(userID, sessionID, limit)
 	if err != nil {
 		if err.Error() == "sesi tidak ditemukan atau tidak dapat diakses" {
-			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			c.JSON(http.StatusForbidden, dto.ErrorResponse{
+				Message: "Forbidden",
+				Error:   err.Error(),
+			})
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+				Message: "Internal Server Error",
+				Error:   err.Error(),
+			})
 		}
 		return
 	}
@@ -143,13 +180,19 @@ func (h *SessionHandler) HandleGetSessionHistory(c *gin.Context) {
 func (h *SessionHandler) HandleGetUserSessions(c *gin.Context) {
 	userID, err := strconv.Atoi(c.Param("user_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Bad Request",
+			Error:   "invalid user id",
+		})
 		return
 	}
 
 	sessions, err := h.usecase.GetUserSessions(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Internal Server Error",
+			Error:   err.Error(),
+		})
 		return
 	}
 
@@ -158,4 +201,43 @@ func (h *SessionHandler) HandleGetUserSessions(c *gin.Context) {
 	})
 }
 
+func (h *SessionHandler) HandleDeleteSession(c *gin.Context) {
+	userID, err := strconv.Atoi(c.Param("user_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Bad Request",
+			Error:   "invalid user id",
+		})
+		return
+	}
 
+	sessionID := c.Param("sessionId")
+	if sessionID == "" {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Bad Request",
+			Error:   "session_id is required",
+		})
+		return
+	}
+
+	err = h.usecase.DeleteSession(userID, sessionID)
+	if err != nil {
+		if err.Error() == "session not found or not owned by user" {
+			c.JSON(http.StatusNotFound, dto.ErrorResponse{
+				Message: "Not Found",
+				Error:   "session not found or not owned by user",
+			})
+		} else {
+			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+				Message: "Internal Server Error",
+				Error:   err.Error(),
+			})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.Response{
+		Message: "session deleted successfully",
+		Data:    nil,
+	})
+}

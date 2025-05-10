@@ -107,7 +107,7 @@ func (tc *TopicControllerImpl) GetTopicByID(c *gin.Context) {
 		Message: "Topic retrieved successfully",
 		Data:    topic,
 	})
-	
+
 }
 
 func (tc *TopicControllerImpl) GetAllTopics(c *gin.Context) {

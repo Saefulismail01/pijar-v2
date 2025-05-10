@@ -34,8 +34,8 @@ Pijar API is a robust backend service that powers the Pijar application, providi
 
 | Method | Endpoint | Description | Access |
 |--------|----------|-------------|--------|
-| POST | `/pijar/register` | Register new user | Public |
-| POST | `/pijar/login` | User login | Public |
+| POST | `/pijar/register` | Register new user | User |
+| POST | `/pijar/login` | User login | User |
 | GET | `/pijar/users` | Get all users | Admin |
 | GET | `/pijar/users/:id` | Get user by ID | Admin |
 | PUT | `/pijar/users/:id` | Update user | Admin |
@@ -78,7 +78,7 @@ Pijar API is a robust backend service that powers the Pijar application, providi
 | Method | Endpoint | Description | Access |
 |--------|----------|-------------|--------|
 | POST | `/pijar/topics` | Create new topic | Admin |
-| GET | `/pijar/topics` | Get all topics | Public |
+| GET | `/pijar/topics` | Get all topics | User |
 | PUT | `/pijar/topics/:id` | Update topic | Admin |
 | DELETE | `/pijar/topics/:id` | Delete topic | Admin |
 | GET | `/pijar/topics/:id` | Get topic by ID | Admin |
@@ -87,10 +87,10 @@ Pijar API is a robust backend service that powers the Pijar application, providi
 
 | Method | Endpoint | Description | Access |
 |--------|----------|-------------|--------|
-| GET | `/pijar/articles` | Get all articles with pagination | Public |
-| GET | `/pijar/articles/all` | Get all articles without pagination | Public |
+| GET | `/pijar/articles` | Get all articles with pagination | User |
+| GET | `/pijar/articles/all` | Get all articles without pagination | User |
 | POST | `/pijar/articles/generate` | Generate new article | Admin |
-| POST | `/pijar/articles/search` | Search articles by title | Public |
+| POST | `/pijar/articles/search` | Search articles by title | User |
 | GET | `/pijar/articles/:id` | Get article by ID | Admin |
 | DELETE | `/pijar/articles/:id` | Delete article | Admin |
 
@@ -125,35 +125,23 @@ go mod download
 
 ## Configuration
 
-Create a `.env` file in the root directory with the following variables:
-
+Copy a `.env.example` file in the root directory with the name `.env` and fill in the following variables:
 ```
-# Server
-PORT=8080
-ENV=development
+DB_HOST=your_db_host
+DB_PORT=your_db_port
+DB_USER=your_db_user
+DB_PASS=your_db_password
+DB_NAME=your_db_name
+DB_DRIVER=your_db_driver
+API_PORT=your_api_port
+AI_API=your_ai_api_key
 
-# Database
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=your_password
-DB_NAME=pijar_db
-
-# JWT
-JWT_SECRET=your_jwt_secret
-JWT_EXPIRY=24h
-
-# Midtrans
-MIDTRANS_SERVER_KEY=your_midtrans_server_key
-MIDTRANS_CLIENT_KEY=your_midtrans_client_key
-MIDTRANS_MERCHANT_ID=your_midtrans_merchant_id
-MIDTRANS_IS_PRODUCTION=false
-
-# AI Service (if applicable)
-AI_SERVICE_URL=your_ai_service_url
-AI_SERVICE_API_KEY=your_ai_service_api_key
+DEEPSEEK_API=your_deepseek_api_key
+JWT_SECRET=your_jwt_secret_key
+JWT_EXPIRY=your_jwt_expiry (example: 2h, 1m, 1d)
+APP_NAME=your_app_name
+SERVER_KEY=your_midtrans_server_key
 ```
-
 ## Running the Application
 
 ### Development Mode

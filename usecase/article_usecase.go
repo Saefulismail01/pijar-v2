@@ -18,7 +18,6 @@ type ArticleUsecase interface {
 	GetArticleByID(ctx context.Context, id int) (*model.Article, error)
 	// GetArticleByTitle(ctx context.Context, title string) (*model.Article, error)
 	SearchArticlesByTitle(ctx context.Context, title string) ([]model.Article, error)
-	//UpdateArticle(ctx context.Context, articleDto *dto.ArticleDto, id int) error
 	DeleteArticle(ctx context.Context, id int) error
 }
 
@@ -211,28 +210,6 @@ func (u *articleUsecase) SearchArticlesByTitle(ctx context.Context, title string
 	// If no exact match, search for similar titles
 	return u.articleRepo.SearchArticlesByTitle(ctx, title)
 }
-
-// func (u *articleUsecase) UpdateArticle(ctx context.Context, articleDto *dto.ArticleDto, id int) error {
-// 	// Check if article exists
-// 	existingArticle, err := u.articleRepo.GetArticleByID(ctx, id)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to get article: %w", err)
-// 	}
-
-// 	// Update article fields
-// 	existingArticle.Title = articleDto.Title
-// 	existingArticle.Content = articleDto.Content
-// 	existingArticle.Source = articleDto.Source
-// 	existingArticle.IDTopic = articleDto.IDTopic
-
-// 	// Save updates
-// 	err = u.articleRepo.UpdateArticle(ctx, existingArticle)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to update article: %w", err)
-// 	}
-
-// 	return nil
-// }
 
 func (u *articleUsecase) DeleteArticle(ctx context.Context, id int) error {
 	err := u.articleRepo.DeleteArticle(ctx, id)
