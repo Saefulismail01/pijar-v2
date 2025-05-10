@@ -13,7 +13,7 @@ type UserUsecase interface {
 	GetAllUsersUsecase() ([]model.Users, error)
 	GetUserByIDUsecase(id int) (model.Users, error)
 	GetUserByEmail(email string) (model.Users, error)
-	UpdateUserUsecase(id int, user model.Users) (model.Users, error)
+	UpdateUserUsecase(user model.Users) (model.Users, error)
 	DeleteUserUsecase(id int) error
 }
 
@@ -69,9 +69,9 @@ func (u *userUsecase) GetUserByEmail(email string) (model.Users, error) {
 }
 
 // UpdateUser updates a user's information
-func (u *userUsecase) UpdateUserUsecase(id int, user model.Users) (model.Users, error) {
+func (u *userUsecase) UpdateUserUsecase(user model.Users) (model.Users, error) {
 	// Check if the user exists
-	existingUser, err := u.UserRepo.GetUserByID(id)
+	existingUser, err := u.UserRepo.GetUserByID(user.ID)
 	if err != nil {
 		return model.Users{}, fmt.Errorf("failed to retrieve user: %v", err)
 	}

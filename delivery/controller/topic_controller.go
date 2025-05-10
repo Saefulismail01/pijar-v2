@@ -56,9 +56,10 @@ func (tc *TopicControllerImpl) CreateTopic(c *gin.Context) {
 	var input dto.InputTopic
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Bad Request",
-			Error:   "Invalid request body",
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  http.StatusBadRequest,
+			"message": "Bad Request",
+			"errors":  fmt.Sprintf("Format request tidak valid: %v", err.Error()),
 		})
 		return
 	}
@@ -66,16 +67,18 @@ func (tc *TopicControllerImpl) CreateTopic(c *gin.Context) {
 	// Create topic with provided user ID
 	topicID, err := tc.topicUsecase.CreateTopic(c.Request.Context(), input.UserID, input.Preference)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Message: "Internal Server Error",
-			Error:   err.Error(),
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"status":  http.StatusInternalServerError,
+			"message": "Internal Server Error",
+			"errors":  err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusCreated, dto.Response{
-		Message: "Topic created successfully",
-		Data: gin.H{
+	c.JSON(http.StatusCreated, gin.H{
+		"status":  http.StatusCreated,
+		"message": "Topic created successfully",
+		"data": gin.H{
 			"id":         topicID,
 			"user_id":    input.UserID,
 			"preference": input.Preference,
@@ -87,47 +90,55 @@ func (tc *TopicControllerImpl) GetTopicByID(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Bad Request",
-			Error:   "Invalid ID format",
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  http.StatusBadRequest,
+			"message": "Bad Request",
+			"errors":  "Invalid ID format",
 		})
 		return
 	}
 
 	topic, err := tc.topicUsecase.GetTopicByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, dto.ErrorResponse{
-			Message: "Not Found",
-			Error:   "Topic not found",
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"status":  http.StatusInternalServerError,
+			"message": "Internal Server Error",
+			"errors":  err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.Response{
-		Message: "Topic retrieved successfully",
-		Data:    topic,
-	})
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-			"status":  http.StatusInternalServerError,
-			"message": "Internal Server Error",
+	if topic == nil {
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{
+			"status":  http.StatusNotFound,
+			"message": "Not Found",
+			"errors":  fmt.Sprintf("Topic with ID %d not found", id),
 		})
+		return
 	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":  http.StatusOK,
+		"message": "Topic retrieved successfully",
+		"data":    topic,
+	})
 }
 
 func (tc *TopicControllerImpl) GetAllTopics(c *gin.Context) {
 	topics, err := tc.topicUsecase.GetAllTopics(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Message: "Internal Server Error",
-			Error:   err.Error(),
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"status":  http.StatusInternalServerError,
+			"message": "Internal Server Error",
+			"errors":  err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.Response{
-		Message: "Topics retrieved successfully",
-		Data:    topics,
+	c.JSON(http.StatusOK, gin.H{
+		"status":  http.StatusOK,
+		"message": "Topics retrieved successfully",
+		"data":    topics,
 	})
 }
 
@@ -135,9 +146,10 @@ func (tc *TopicControllerImpl) UpdateTopic(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Bad Request",
-			Error:   "Invalid ID format",
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  http.StatusBadRequest,
+			"message": "Bad Request",
+			"errors":  "Invalid ID format",
 		})
 		return
 	}
@@ -147,31 +159,27 @@ func (tc *TopicControllerImpl) UpdateTopic(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Bad Request",
-			Error:   "Invalid request body format",
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  http.StatusBadRequest,
+			"message": "Bad Request",
+			"errors":  fmt.Sprintf("Format request tidak valid: %v", err.Error()),
 		})
 		return
 	}
 
 	err = tc.topicUsecase.UpdateTopic(c.Request.Context(), id, input.Preference)
 	if err != nil {
-		if err.Error() == fmt.Sprintf("topic with ID %d not found", id) {
-			c.JSON(http.StatusNotFound, dto.ErrorResponse{
-				Message: "Not Found",
-				Error:   err.Error(),
-			})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Message: "Internal Server Error",
-			Error:   err.Error(),
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"status":  http.StatusInternalServerError,
+			"message": "Internal Server Error",
+			"errors":  err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.Response{
-		Message: "Topic updated successfully",
+	c.JSON(http.StatusOK, gin.H{
+		"status":  http.StatusOK,
+		"message": "Topic updated successfully",
 	})
 }
 
@@ -179,30 +187,26 @@ func (tc *TopicControllerImpl) DeleteTopic(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Bad Request",
-			Error:   "Invalid ID format",
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  http.StatusBadRequest,
+			"message": "Bad Request",
+			"errors":  "Invalid ID format",
 		})
 		return
 	}
 
 	err = tc.topicUsecase.DeleteTopic(c.Request.Context(), id)
 	if err != nil {
-		if err.Error() == fmt.Sprintf("topic with ID %d not found", id) {
-			c.JSON(http.StatusNotFound, dto.ErrorResponse{
-				Message: "Not Found",
-				Error:   err.Error(),
-			})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Message: "Internal Server Error",
-			Error:   err.Error(),
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"status":  http.StatusInternalServerError,
+			"message": "Internal Server Error",
+			"errors":  err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.Response{
-		Message: "Topic deleted successfully",
+	c.JSON(http.StatusOK, gin.H{
+		"status":  http.StatusOK,
+		"message": "Topic deleted successfully",
 	})
 }

@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"pijar/middleware"
 	"pijar/model"
-	"pijar/model/dto"
 	"pijar/usecase"
 	"pijar/utils/service"
 	"strconv"
@@ -66,10 +65,7 @@ func (uc *UserController) CreateUserController(c *gin.Context) {
 
 	// Bind JSON dari request body ke struct userInput
 	if err := c.ShouldBindJSON(&userInput); err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Bad Request",
-			Error:   "Invalid input",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
 
@@ -77,33 +73,27 @@ func (uc *UserController) CreateUserController(c *gin.Context) {
 	createdUser, err := uc.UserUsecase.CreateUserUsecase(userInput)
 	if err != nil {
 		// Kembalikan error yang terjadi
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Bad Request",
-			Error:   err.Error(),
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Return data user yang berhasil
-	c.JSON(http.StatusOK, dto.Response{
-		Message: "User created successfully",
-		Data:    createdUser,
+	c.JSON(http.StatusOK, gin.H{
+		"user": createdUser,
 	})
 }
 
 func (uc *UserController) GetAllUsersController(c *gin.Context) {
 	users, err := uc.UserUsecase.GetAllUsersUsecase()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Message: "Internal Server Error",
-			Error:   "Failed to fetch users",
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to fetch users",
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.Response{
-		Message: "Users retrieved successfully",
-		Data:    users,
+	c.JSON(http.StatusOK, gin.H{
+		"data": users,
 	})
 }
 
@@ -111,116 +101,109 @@ func (uc *UserController) GetUserByIDController(c *gin.Context) {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Bad Request",
-			Error:   "Invalid user ID",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
 	user, err := uc.UserUsecase.GetUserByIDUsecase(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, dto.ErrorResponse{
-			Message: "Not Found",
-			Error:   err.Error(),
-		})
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.Response{
-		Message: "User retrieved successfully",
-		Data:    user,
-	})
+	c.JSON(http.StatusOK, gin.H{"data": user})
 }
 
 func (uc *UserController) UpdateUserController(c *gin.Context) {
-	idParam := c.Param("id")
-	id, err := strconv.Atoi(idParam)
+	// Get user ID from URL parameter
+	userID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Bad Request",
-			Error:   "Invalid user ID",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
-	var userInput model.Users
-	if err := c.ShouldBindJSON(&userInput); err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Bad Request",
-			Error:   "Invalid input",
-		})
-		return
-	}
-
-	updatedUser, err := uc.UserUsecase.UpdateUserUsecase(id, userInput)
+	// Get existing user to preserve password if not updating it
+	existingUser, err := uc.UserUsecase.GetUserByIDUsecase(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Message: "Internal Server Error",
-			Error:   err.Error(),
-		})
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.Response{
-		Message: "User updated successfully",
-		Data:    updatedUser,
+	// Parse the request body
+	var updateRequest struct {
+		Name      string `json:"name"`
+		Email     string `json:"email"`
+		Password  string `json:"password,omitempty"`
+		BirthYear int    `json:"birth_year"`
+		Phone     string `json:"phone"`
+	}
+
+	if err := c.ShouldBindJSON(&updateRequest); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	// Prepare user object for update
+	user := existingUser
+	user.Name = updateRequest.Name
+	user.Email = updateRequest.Email
+	user.BirthYear = updateRequest.BirthYear
+	user.Phone = updateRequest.Phone
+
+	// Only update password if provided
+	if updateRequest.Password != "" {
+		hashedPassword, err := service.HashPassword(updateRequest.Password)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+			return
+		}
+		user.PasswordHash = hashedPassword
+	}
+
+	// Call the usecase to update the user
+	updatedUser, err := uc.UserUsecase.UpdateUserUsecase(user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Return the updated user data
+	c.JSON(http.StatusOK, gin.H{
+		"message": "User updated successfully",
+		"user":    updatedUser,
 	})
 }
 
 func (uc *UserController) DeleteUserController(c *gin.Context) {
-	idParam := c.Param("id")
-	id, err := strconv.Atoi(idParam)
+	userID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Bad Request",
-			Error:   "Invalid user ID",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
-	err = uc.UserUsecase.DeleteUserUsecase(id)
+	err = uc.UserUsecase.DeleteUserUsecase(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Message: "Internal Server Error",
-			Error:   err.Error(),
-		})
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.Response{
-		Message: "User deleted successfully",
-	})
+	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
 }
 
 func (uc *UserController) GetUserByEmail(c *gin.Context) {
 	email := c.Param("email")
+
 	user, err := uc.UserUsecase.GetUserByEmail(email)
 	if err != nil {
-		c.JSON(http.StatusNotFound, dto.ErrorResponse{
-			Message: "Not Found",
-			Error:   "User not found",
-		})
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.Response{
-		Message: "User retrieved successfully",
-		Data:    user,
-	})
+	c.JSON(http.StatusOK, user)
 }
 
+// GetOwnProfileController allows users to get their own profile information
 func (uc *UserController) GetOwnProfileController(c *gin.Context) {
-	// Get user ID from JWT token
-	token := c.GetHeader("Authorization")
-	if token == "" {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-			Message: "Unauthorized",
-			Error:   "No token provided",
-		})
-		return
-	}
-
 	// Get user ID from the JWT token
 	userIDStr, exists := c.Get("user_id")
 	if !exists {
@@ -235,7 +218,7 @@ func (uc *UserController) GetOwnProfileController(c *gin.Context) {
 	}
 
 	// Get user profile
-	user, err := uc.UserUsecase.GetUserByIDUsecase(int(userID))
+	user, err := uc.UserUsecase.GetUserByIDUsecase(userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
@@ -247,13 +230,13 @@ func (uc *UserController) GetOwnProfileController(c *gin.Context) {
 // UpdateOwnProfileController allows users to update their own profile
 func (uc *UserController) UpdateOwnProfileController(c *gin.Context) {
 	// Get user ID from the JWT token
-	userIDStr := c.Param("id")
-	if userIDStr == "" {
+	userIDStr, exists := c.Get("user_id")
+	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found in token"})
 		return
 	}
 
-	userID, err := strconv.Atoi(userIDStr)
+	userID, err := strconv.Atoi(userIDStr.(string))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID format"})
 		return
@@ -299,7 +282,7 @@ func (uc *UserController) UpdateOwnProfileController(c *gin.Context) {
 	}
 
 	// Call the usecase to update the user
-	updatedUser, err := uc.UserUsecase.UpdateUserUsecase(userID, user)
+	updatedUser, err := uc.UserUsecase.UpdateUserUsecase(user)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

@@ -50,17 +50,18 @@ func (ac *ArticleControllerImpl) Route() {
 func (ac *ArticleControllerImpl) SearchArticleByTitle(c *gin.Context) {
 	var searchReq dto.ArticleSearchRequest
 	if err := c.ShouldBindJSON(&searchReq); err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Bad Request",
-			Error:   "Invalid request body",
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  http.StatusBadRequest,
+			"message": "Invalid request body",
+			"error":   err.Error(),
 		})
 		return
 	}
 
 	if searchReq.Title == "" {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Bad Request",
-			Error:   "Title is required in the request body",
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  http.StatusBadRequest,
+			"message": "Title is required in the request body",
 		})
 		return
 	}
@@ -68,18 +69,19 @@ func (ac *ArticleControllerImpl) SearchArticleByTitle(c *gin.Context) {
 	// Search for articles with similar titles
 	articles, err := ac.articleUsecase.SearchArticlesByTitle(c.Request.Context(), searchReq.Title)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Message: "Internal Server Error",
-			Error:   "Failed to search articles",
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"status":  http.StatusInternalServerError,
+			"message": "Failed to search articles",
+			"error":   err.Error(),
 		})
 		return
 	}
 
 	// Check if any articles were found
 	if len(articles) == 0 {
-		c.JSON(http.StatusNotFound, dto.ErrorResponse{
-			Message: "Not Found",
-			Error:   "No articles found matching the search criteria",
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{
+			"status":  http.StatusNotFound,
+			"message": "No articles found matching the search criteria",
 		})
 		return
 	}
@@ -100,39 +102,56 @@ func (ac *ArticleControllerImpl) SearchArticleByTitle(c *gin.Context) {
 		response.Suggestions = suggestions
 	}
 
-	c.JSON(http.StatusOK, dto.Response{
-		Message: "Articles retrieved successfully",
-		Data:    response,
-	})
+	c.JSON(http.StatusOK, response)
 }
 
 // GenerateArticle handles article generation from topic ID
 func (ac *ArticleControllerImpl) GenerateArticle(c *gin.Context) {
-	var input struct {
-		TopicID int `json:"topic_id" binding:"required"`
-	}
-
+	// For simplicity, use a default user ID
+	// Parse the request body
+	var input dto.GenerateArticleRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Bad Request",
-			Error:   err.Error(),
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  http.StatusBadRequest,
+			"message": "Bad Request",
+			"errors":  fmt.Sprintf("Format request tidak valid: %v", err.Error()),
 		})
 		return
 	}
 
-	// Generate article
-	article, err := ac.articleUsecase.GenerateArticle(c.Request.Context(), input.TopicID)
+	// Log the request
+	fmt.Printf("GenerateArticle request received for topic ID: %d\n", input.TopicID)
+
+	// Generate articles based on the topic ID
+	articles, err := ac.articleUsecase.GenerateArticle(c.Request.Context(), input.TopicID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Message: "Internal Server Error",
-			Error:   err.Error(),
+		statusCode := http.StatusInternalServerError
+		errorMsg := err.Error()
+
+		// Check for specific error messages to provide appropriate status codes
+		if errorMsg == fmt.Sprintf("topic with ID %d not found in database", input.TopicID) ||
+			errorMsg == fmt.Sprintf("topic with ID %d does not exist", input.TopicID) ||
+			errorMsg == fmt.Sprintf("topic with ID %d not found", input.TopicID) {
+			statusCode = http.StatusNotFound
+		}
+
+		// Log the detailed error
+		fmt.Printf("Error generating articles for topic ID %d: %v\n", input.TopicID, errorMsg)
+
+		c.AbortWithStatusJSON(statusCode, gin.H{
+			"status":  statusCode,
+			"message": http.StatusText(statusCode),
+			"errors":  errorMsg,
+			"details": fmt.Sprintf("Failed to generate articles for topic ID: %d", input.TopicID),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.Response{
-		Message: "Article generated successfully",
-		Data:    article,
+	// Return the generated articles
+	c.JSON(http.StatusCreated, gin.H{
+		"status":  http.StatusCreated,
+		"message": "Articles generated successfully",
+		"data":    articles,
 	})
 }
 
