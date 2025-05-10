@@ -2,10 +2,9 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"os"
-
 	"github.com/joho/godotenv"
+	"log"
 )
 
 type DBConfig struct {
@@ -18,8 +17,7 @@ type DBConfig struct {
 }
 
 type APIConfig struct {
-	APIHost string
-	APIPort string
+	ApiPort string
 }
 
 type Config struct {
@@ -30,7 +28,7 @@ type Config struct {
 func (c *Config) readConfig() error {
 	err := godotenv.Load()
 	if err != nil {
-		return fmt.Errorf("error loading .env file: %v", err)
+		log.Fatal(err)
 	}
 
 	c.DBConfig = DBConfig{
@@ -43,22 +41,20 @@ func (c *Config) readConfig() error {
 	}
 
 	c.APIConfig = APIConfig{
-		APIHost: os.Getenv("API_HOST"),
-		APIPort: os.Getenv("API_PORT"),
+		ApiPort: os.Getenv("API_PORT"),
 	}
 
-	if c.Host == "" || c.Port == "" || c.User == "" || c.Password == "" || c.DBName == "" || c.APIPort == "" {
-		return fmt.Errorf("missing required environment variables")
+	if c.Host == "" || c.Port == "" || c.User == "" || c.Password == "" || c.DBName == "" || c.ApiPort == "" {
+		return fmt.Errorf("required config")
 	}
-
 	return nil
 }
 
 func NewConfig() (*Config, error) {
 	cfg := &Config{}
 	if err := cfg.readConfig(); err != nil {
-		log.Printf("Configuration error: %v", err)
 		return nil, err
 	}
 	return cfg, nil
 }
+

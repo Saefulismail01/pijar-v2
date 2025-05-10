@@ -157,3 +157,5 @@ func (h *SessionHandler) HandleGetUserSessions(c *gin.Context) {
 		"sessions": sessions,
 	})
 }
+
+

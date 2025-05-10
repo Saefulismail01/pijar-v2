@@ -7,24 +7,19 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func ConnectDB(cfg DBConfig) (*sql.DB, error) {
-	connStr := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		cfg.Host,
-		cfg.Port,
-		cfg.User,
-		cfg.Password,
-		cfg.DBName,
-	)
-
-	db, err := sql.Open(cfg.Driver, connStr)
+func ConnectDB() (*sql.DB, *Config, error) {
+	cfg, err := NewConfig()
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %v", err)
+		return nil, nil, err
 	}
 
-	err = db.Ping()
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.DBName)
+
+	db, err := sql.Open(cfg.Driver, dsn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to ping database: %v", err)
+		panic("gagal terkoneksi")
 	}
-	return db, nil
+
+	return db, cfg, nil
 }

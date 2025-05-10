@@ -10,6 +10,7 @@ import (
 )
 
 
+
 type AuthController struct {
 	rg          *gin.RouterGroup
 	jwtService  service.JwtService
@@ -24,6 +25,7 @@ func NewAuthController(rg *gin.RouterGroup, jwt service.JwtService, authUC useca
 		AuthUsecase: authUC,
 	}
 }
+
 
 
 func (ac *AuthController) Route() {
@@ -42,12 +44,14 @@ func (a *AuthController) Register(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Hash password
 	hashedPassword, err := service.HashPassword(input.Password)
 	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "gagal mengenkripsi password"})
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "gagal mengenkripsi password"})
 		return
 	}
@@ -64,11 +68,15 @@ func (a *AuthController) Register(c *gin.Context) {
 	authResp, err := a.AuthUsecase.Register(user, input.Password)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusCreated, authResp)
+	c.JSON(http.StatusCreated, authResp)
 }
+
+
 
 
 
@@ -79,15 +87,19 @@ func (a *AuthController) Login(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
 
 
 	authResp, err := a.AuthUsecase.Login(input.Email, input.Password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
+	c.JSON(http.StatusOK, authResp)
 	c.JSON(http.StatusOK, authResp)
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -20,9 +19,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-resty/resty/v2"
 	"github.com/joho/godotenv"
-	"github.com/robfig/cron/v3"
-	"firebase.google.com/go/v4"
-	"google.golang.org/api/option"
 )
 
 type Server struct {
@@ -33,7 +29,7 @@ type Server struct {
 	dailyGoalUC    usecase.DailyGoalUseCase
 	userRepo       repository.UserRepoInterface
 	userUsecase    usecase.UserUsecase
-	authUsecase    usecase.AuthUsecase
+	authUsecase    *usecase.AuthUsecase
 	paymentUsecase usecase.PaymentUsecase
 	jwtService     service.JwtService
 	authMiddleware *middleware.AuthMiddleware
@@ -48,9 +44,11 @@ func (s *Server) initRoute() {
 
 	// Initialize controllers and setup routes
 	controller.NewUserController(rg, s.userUsecase, s.jwtService, s.authMiddleware).Route()
-	controller.NewAuthController(rg, s.jwtService, s.authUsecase).Route()
-	// Payment controllers
+
+	controller.NewAuthController(rg, s.jwtService, *s.authUsecase).Route()
+
 	controller.NewPaymentController(rg, s.paymentUsecase).Route()
+
 	controller.NewMidtransCallbackHandler(rg, s.paymentUsecase).Route()
 
 	// Feature Coach
@@ -124,34 +122,19 @@ func NewServer() *Server {
 		fmt.Printf("Warning: Error loading .env file: %v\n", err)
 	}
 
-	cfg := config.LoadDBConfig()
-	db, err := config.ConnectDB(cfg)
+	db, cfg, err := config.ConnectDB()
 	if err != nil {
 		fmt.Printf("Error connecting to database: %v\n", err)
 		return nil
 	}
 
-	// Initialize Firebase
-	firebaseApp, err := firebase.NewApp(context.Background(), nil)
-	if err != nil {
-		panic(fmt.Errorf("failed to initialize firebase: %v", err))
-	}
-
-	// Initialize FCM client
-	firebaseAuth, err := firebaseApp.Messaging(context.Background())
-	if err != nil {
-		panic(fmt.Errorf("failed to create FCM client: %v", err))
-	}
-
 	// Initialize repositories
 	userRepo := repository.NewUserRepo(db)
-	productRepo := repository.NewProductRepo(db)
-	transactionRepo := repository.NewTransactionRepo(db)
-	dailyGoalRepo := repository.NewDailyGoalsRepo(db)
-	notifRepo := repository.NewNotificationRepo(db)
+	productRepo := repository.NewProductRepository(db)
+	transactionRepo := repository.NewTransactionRepository(db)
 
 	// Initialize services
-	jwtService := service.NewJwtService(os.Getenv("JWT_SECRET"), "PIJAR-APP", time.Hour*2)
+	jwtService := service.NewJwtService("SECRETKU", "PIJAR-APP", time.Hour*2)
 	restyClient := resty.New()
 	midtransService := service.NewMidtransService(restyClient)
 
@@ -161,26 +144,10 @@ func NewServer() *Server {
 	// Initialize usecases
 	userUsecase := usecase.NewUserUsecase(userRepo)
 	authUsecase := usecase.NewAuthUsecase(userRepo, jwtService)
-	paymentUsecase := usecase.NewPaymentUsecase(
-		midtransService,
-		productRepo,
-		transactionRepo,
-	)
-
-	// Tambahan usecase notifikasi
-	notificationUC := usecase.NewNotificationUseCase(
-		notifRepo,
-		dailyGoalRepo,
-		firebaseAuth,
-	)
-
-	// Setup cron job untuk reminder
-	c := cron.New()
-	c.AddFunc("0 9,13,17,20 * * *", notificationUC.SendScheduledReminders)
-	c.Start()
+	paymentUsecase := usecase.NewPaymentUsecase(midtransService, productRepo, transactionRepo)
 
 	// Initialize session repository
-	sessionRepo := repository.NewSessionRepo(db)
+	sessionRepo := repository.NewSession(db)
 
 	// Initialize AI coach
 	deepseek := service.NewDeepSeekClient(os.Getenv("AI_API"))
@@ -191,23 +158,23 @@ func NewServer() *Server {
 	coachUsecase := usecase.NewSessionUsecase(sessionRepo, deepseek)
 
 	// Initialize journal
-	journalRepo := repository.NewJournalRepo(db)
+	journalRepo := repository.NewJournalRepository(db)
 	journalUsecase := usecase.NewJournalUsecase(journalRepo)
 
 	// Initialize topic and article
-	topicRepo := repository.NewTopicRepo(db)
+	topicRepo := repository.NewTopicRepository(db)
 	topicUsecase := usecase.NewTopicUsecase(topicRepo)
 
-	articleRepo := repository.NewArticleRepo(db)
+	articleRepo := repository.NewArticleRepository(db)
 	articleUsecase := usecase.NewArticleUsecase(articleRepo)
 
-	dailyGoalUC := usecase.NewGoalUseCase(dailyGoalRepo, *userRepo, notifRepo, firebaseAuth)
+	dailyGoalRepo := repository.NewDailyGoalsRepository(db)
+	dailyGoalUC := usecase.NewGoalUseCase(dailyGoalRepo)
 
 	engine := gin.Default()
 	host := fmt.Sprintf(":%s", cfg.ApiPort)
 
 	return &Server{
-		// Fitur existing
 		coachUC:        coachUsecase,
 		journalUC:      journalUsecase,
 		topicUC:        topicUsecase,
@@ -222,9 +189,5 @@ func NewServer() *Server {
 		engine:         engine,
 		host:           host,
 		db:             db,
-
-		notificationUC: notificationUC,
-		fcmClient:      firebaseAuth,
-		cron:           c,
 	}
 }

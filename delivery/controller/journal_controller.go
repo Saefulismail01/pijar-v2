@@ -18,7 +18,6 @@ type JournalController struct {
 	aM      middleware.AuthMiddleware
 }
 
-
 func NewJournalController(usecase usecase.JournalUsecase, rg *gin.RouterGroup, aM middleware.AuthMiddleware) *JournalController {
 	return &JournalController{
 		usecase: usecase,

@@ -9,24 +9,19 @@ import (
 	"pijar/utils/service"
 )
 
-type AuthUsecase interface {
-	Login(email, password string) (model.AuthResponse, error)
-	Register(user model.Users, plainPassword string) (map[string]interface{}, error)
-}
-
-type authUsecase struct {
+type AuthUsecase struct {
 	userRepo   repository.UserRepoInterface
 	jwtService service.JwtService
 }
 
-func NewAuthUsecase(repo repository.UserRepoInterface, jwt service.JwtService) AuthUsecase {
-	return &authUsecase{
-		userRepo:   repo,
-		jwtService: jwt,
+func NewAuthUsecase(userRepo repository.UserRepoInterface, jwtService service.JwtService) *AuthUsecase {
+	return &AuthUsecase{
+		userRepo:   userRepo,
+		jwtService: jwtService,
 	}
 }
 
-func (u *authUsecase) Login(email, password string) (model.AuthResponse, error) {
+func (u *AuthUsecase) Login(email, password string) (model.AuthResponse, error) {
 	user, err := u.userRepo.GetUserByEmail(email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -51,7 +46,7 @@ func (u *authUsecase) Login(email, password string) (model.AuthResponse, error) 
 	}, nil
 }
 
-func (u *authUsecase) Register(user model.Users, plainPassword string) (map[string]interface{}, error) {
+func (u *AuthUsecase) Register(user model.Users, plainPassword string) (map[string]interface{}, error) {
 	// Cek apakah email sudah terdaftar
 	exists, err := u.userRepo.IsEmailExists(user.Email)
 	if err != nil {
