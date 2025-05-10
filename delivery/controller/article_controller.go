@@ -29,7 +29,7 @@ func NewArticleController(au usecase.ArticleUsecase, rg *gin.RouterGroup, aM mid
 func (ac *ArticleControllerImpl) Route() {
 	articlesGroup := ac.rg.Group("/articles")
 
-	//endpoint khusus admin
+	//admin-specific endpoint
 	adminRoutes := articlesGroup.Group("")
 	adminRoutes.Use(ac.aM.RequireToken("ADMIN"))
 	{
@@ -37,7 +37,7 @@ func (ac *ArticleControllerImpl) Route() {
 		adminRoutes.DELETE("/:id", ac.DeleteArticle)
 	}
 
-	//endpoint untuk user
+	//user endpoint
 	userRoutes := articlesGroup.Group("")
 	userRoutes.Use(ac.aM.RequireToken("USER", "ADMIN"))
 	{

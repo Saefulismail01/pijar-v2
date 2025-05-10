@@ -32,35 +32,24 @@ func NewGoalController(
 func (c *dailyGoalsController) Route() {
 	goalsGroup := c.rg.Group("/goals")
 
-	// Endpoint khusus admin
+	// Admin-specific endpoint
 	adminRoutes := goalsGroup.Group("")
 	adminRoutes.Use(c.aM.RequireToken("ADMIN"))
 	{
-		adminRoutes.GET("/:user_id", c.GetUserGoals) // [Admin] Get goals by user ID
+		adminRoutes.GET("/:user_id", c.GetUserGoals) 
 	}
 
-	// Endpoint untuk user biasa
+	// Endpoint for regular users
 	userRoutes := goalsGroup.Group("")
 	userRoutes.Use(c.aM.RequireToken("USER", "ADMIN"))
 	{
-		userRoutes.POST("/:user_id", c.CreateGoal)                  // [User] Create goal
-		userRoutes.PUT("/:user_id/:id", c.UpdateGoal)               // [User] Update goal
-		userRoutes.PUT("/complete-article", c.CompleteGoalProgress) // [User] Complete article
-		userRoutes.DELETE("/:user_id/:id", c.DeleteGoal)            // [User] Delete goal
+		userRoutes.POST("/:user_id", c.CreateGoal)                  
+		userRoutes.PUT("/:user_id/:id", c.UpdateGoal)               
+		userRoutes.PUT("/complete-article", c.CompleteGoalProgress) 
+		userRoutes.DELETE("/:user_id/:id", c.DeleteGoal)            
 	}
 }
 
-// @Summary      Create a new goal
-// @Description  Add a new learning goal with articles to read
-// @Tags         Goals
-// @Accept       json
-// @Produce      json
-// @Param        user_id path      int                  true  "User ID"
-// @Param        request body      dto.CreateGoalRequest  true  "Goal data"
-// @Success      201     {object}  dto.GoalResponse
-// @Failure      400     {object}  map[string]string
-// @Failure      500     {object}  map[string]string
-// @Router       /pijar/goals/{user_id} [post]
 func (c *dailyGoalsController) CreateGoal(ctx *gin.Context) {
 	userID, err := strconv.Atoi(ctx.Param("user_id"))
 	if err != nil {
@@ -113,17 +102,6 @@ func (c *dailyGoalsController) CreateGoal(ctx *gin.Context) {
 	})
 }
 
-// @Summary      Complete an article progress
-// @Description  Mark an article as completed in a goal
-// @Tags         Goals
-// @Accept       json
-// @Produce      json
-// @Param        request body dto.CompleteArticleRequest true "Completion Data"
-// @Success      200  {object}  dto.GoalProgressResponse
-// @Failure      400  {object}  map[string]string
-// @Failure      404  {object}  map[string]string
-// @Failure      500  {object}  map[string]string
-// @Router       /pijar/goals/complete-article [put]
 func (c *dailyGoalsController) CompleteGoalProgress(ctx *gin.Context) {
 	// Parse request body
 	var req dto.CompleteArticleRequest
@@ -158,10 +136,10 @@ func (c *dailyGoalsController) CompleteGoalProgress(ctx *gin.Context) {
 		return
 	}
 
-	// Call usecase to complete the article progress
+	// Call usecase to complete article progress
 	result, err := c.uc.CompleteArticleProgress(context.Background(), req.GoalID, req.ArticleID, req.UserID)
 	if err != nil {
-		// Check if the error is due to article not found in goal
+		// Check if error is due to article not found in goal
 		if err.Error() == "artikel tidak termasuk dalam goal ini" {
 			ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
 				Error: err.Error(),
@@ -213,15 +191,6 @@ func (c *dailyGoalsController) CompleteGoalProgress(ctx *gin.Context) {
 	})
 }
 
-// @Summary      Get user goals
-// @Description  Retrieve all goals for a specific user
-// @Tags         Goals
-// @Produce      json
-// @Param        user_id path int true "User ID"
-// @Success      200  {object}  map[string]interface{}
-// @Failure      400  {object}  map[string]string
-// @Failure      500  {object}  map[string]string
-// @Router       /pijar/goals/{user_id} [get]
 func (c *dailyGoalsController) GetUserGoals(ctx *gin.Context) {
 	userID, err := strconv.Atoi(ctx.Param("user_id"))
 	if err != nil {
@@ -245,18 +214,6 @@ func (c *dailyGoalsController) GetUserGoals(ctx *gin.Context) {
 	})
 }
 
-// @Summary      Update a goal
-// @Description  Update goal details including articles to read
-// @Tags         Goals
-// @Accept       json
-// @Produce      json
-// @Param        user_id         path      int                   true  "User ID"
-// @Param        id              path      int                   true  "Goal ID"
-// @Param        request         body      dto.UpdateGoalRequest  true  "Update Data"
-// @Success      200             {object}  dto.GoalProgressResponse
-// @Failure      400             {object}  map[string]string
-// @Failure      500             {object}  map[string]string
-// @Router       /pijar/goals/{user_id}/{id} [put]
 func (c *dailyGoalsController) UpdateGoal(ctx *gin.Context) {
 	userID, err := strconv.Atoi(ctx.Param("user_id"))
 	if err != nil {
@@ -345,16 +302,6 @@ func (c *dailyGoalsController) UpdateGoal(ctx *gin.Context) {
 	})
 }
 
-// @Summary      Delete a goal
-// @Description  Permanently delete a goal and its progress
-// @Tags         Goals
-// @Param        user_id path int true "User ID"
-// @Param        id      path int true "Goal ID"
-// @Success      200  {object}  map[string]string  "Contoh: {'message':'Goal successfully deleted'}"
-// @Failure      400  {object}  map[string]string
-// @Failure      404  {object}  map[string]string
-// @Failure      500  {object}  map[string]string
-// @Router       /pijar/goals/{user_id}/{id} [delete]
 func (c *dailyGoalsController) DeleteGoal(ctx *gin.Context) {
 	// Get user_id from URL
 	userID, err := strconv.Atoi(ctx.Param("user_id"))

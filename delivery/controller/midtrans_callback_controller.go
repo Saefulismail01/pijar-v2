@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"pijar/model"
+	"pijar/model/dto"
 	"pijar/usecase"
 
 	"github.com/gin-gonic/gin"
@@ -42,7 +43,10 @@ func (h *midtransCallbackHandler) HandleCallback(c *gin.Context) {
 	var callback model.MidtransCallbackRequest
 	if err := c.ShouldBindJSON(&callback); err != nil {
 		log.Printf("Error binding callback JSON: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Invalid callback request",
+			Error:   err.Error(),
+		})
 		return
 	}
 
@@ -53,10 +57,16 @@ func (h *midtransCallbackHandler) HandleCallback(c *gin.Context) {
 	err := h.paymentUsecase.ProcessCallback(callback)
 	if err != nil {
 		log.Printf("Error processing callback: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process callback"})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Failed to process callback",
+			Error:   err.Error(),
+		})
 		return
 	}
 
 	// Berikan response OK ke Midtrans
-	c.JSON(http.StatusOK, gin.H{"status": "OK"})
+	c.JSON(http.StatusOK, dto.Response{
+		Message: "OK",
+		Data:    "OK",
+	})
 }

@@ -43,12 +43,6 @@ func (tc *TopicControllerImpl) Route() {
 		adminRoutes.GET("/:id", tc.GetTopicByID)
 	}
 
-	// tc.RouterGroup.POST("/topics", tc.CreateTopic)
-	// tc.RouterGroup.GET("/topics", tc.GetAllTopics)
-	// tc.RouterGroup.GET("/topics/:id", tc.GetTopicByID)
-	// tc.RouterGroup.PUT("/topics/h:id", tc.UpdateTopic)
-	// tc.RouterGroup.DELETE("/topics/:id", tc.DeleteTopic)
-
 }
 
 func (tc *TopicControllerImpl) CreateTopic(c *gin.Context) {
@@ -107,12 +101,7 @@ func (tc *TopicControllerImpl) GetTopicByID(c *gin.Context) {
 		Message: "Topic retrieved successfully",
 		Data:    topic,
 	})
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-			"status":  http.StatusInternalServerError,
-			"message": "Internal Server Error",
-		})
-	}
+
 }
 
 func (tc *TopicControllerImpl) GetAllTopics(c *gin.Context) {

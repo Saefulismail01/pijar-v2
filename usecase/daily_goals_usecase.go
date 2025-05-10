@@ -56,7 +56,10 @@ func (uc *dailyGoalUseCase) CompleteArticleProgress(
 		return dto.GoalProgressInfo{}, fmt.Errorf("failed to get goal: %v", err)
 	}
 
-	// Complete the article progress
+	// Initialize updatedGoal
+	updatedGoal := goal
+
+	// Complete article progress
 	err = uc.repo.CompleteArticleProgress(ctx, goalID, int64(articleID), true)
 	if err != nil {
 		return dto.GoalProgressInfo{}, fmt.Errorf("failed to complete article progress: %v", err)
@@ -79,12 +82,7 @@ func (uc *dailyGoalUseCase) CompleteArticleProgress(
 		return dto.GoalProgressInfo{}, fmt.Errorf("failed to count completed progress: %v", err)
 	}
 
-	// Log untuk debugging
-	fmt.Printf("Goal %d has %d completed articles. Goal completed status: %v\n", goalID, completedCount, goal.Completed)
-
-	// If 3 or more articles are completed, mark the main goal as completed
 	if completedCount >= 3 && !goal.Completed {
-		fmt.Printf("Updating goal %d to completed\n", goalID)
 		updatedGoal, err = uc.repo.UpdateGoal(
 			ctx,
 			&model.UserGoal{
@@ -94,7 +92,7 @@ func (uc *dailyGoalUseCase) CompleteArticleProgress(
 				Task:      goal.Task,
 				Completed: true,
 			},
-			nil, // No need to update articles_to_read
+			nil,
 			userID,
 		)
 		if err != nil {
@@ -102,7 +100,6 @@ func (uc *dailyGoalUseCase) CompleteArticleProgress(
 		}
 	}
 
-	// Get the updated progress information
 	progress, err := uc.repo.GetGoalProgress(ctx, goalID, userID)
 	if err != nil {
 		return dto.GoalProgressInfo{}, fmt.Errorf("failed to get goal progress: %v", err)

@@ -42,37 +42,18 @@ type Server struct {
 func (s *Server) initRoute() {
 	rg := s.engine.Group("/pijar")
 
-	// Initialize controllers and setup routes
 	controller.NewUserController(rg, s.userUsecase, s.jwtService, s.authMiddleware).Route()
-
 	controller.NewAuthController(rg, s.jwtService, *s.authUsecase).Route()
-
-	controller.NewPaymentController(rg, s.paymentUsecase).Route()
-
+	controller.NewPaymentController(rg, s.paymentUsecase, *s.authMiddleware).Route()
 	controller.NewMidtransCallbackHandler(rg, s.paymentUsecase).Route()
-
-	// Feature Coach
 	controller.NewSessionHandler(s.coachUC, rg, *s.authMiddleware).Route()
-
-	// feature journal
 	controller.NewJournalController(s.journalUC, rg, *s.authMiddleware).Route()
-
-	// feature topic
 	controller.NewTopicController(s.topicUC, rg, *s.authMiddleware).Route()
-
-	// feature articles
 	controller.NewArticleController(s.articleUC, rg, *s.authMiddleware).Route()
-
-	// feature daily goals
 	controller.NewGoalController(s.dailyGoalUC, rg, *s.authMiddleware).Route()
 }
 
 func (s *Server) Run() {
-
-	// s.initRoute()
-	// if err := s.engine.Run(s.host); err != nil {
-	// 	panic(err)
-	// }
 
 	s.initRoute()
 
@@ -81,11 +62,9 @@ func (s *Server) Run() {
 		Handler: s.engine,
 	}
 
-	// channel for signal interrupt
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
-	// run server in goroutine
 	go func() {
 		fmt.Printf("Server running on %s\n", s.host)
 		if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -93,20 +72,15 @@ func (s *Server) Run() {
 		}
 	}()
 
-	// blocking main goroutine until signal received
 	<-quit
 	fmt.Println("\nShutting down server...")
 
-	// timeout 5 seconds for shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
-	// shutdown server
 	if err := s.server.Shutdown(ctx); err != nil {
 		fmt.Printf("Server forced to shutdown: %v\n", err)
 	}
 
-	// close db connection
 	if err := s.db.Close(); err != nil {
 		fmt.Printf("Error closing database: %v\n", err)
 	}
@@ -116,7 +90,6 @@ func (s *Server) Run() {
 }
 
 func NewServer() *Server {
-	// Load environment variables first
 	err := godotenv.Load()
 	if err != nil {
 		fmt.Printf("Warning: Error loading .env file: %v\n", err)
@@ -128,28 +101,36 @@ func NewServer() *Server {
 		return nil
 	}
 
-	// Initialize repositories
+	// Initialize database repositories
 	userRepo := repository.NewUserRepo(db)
 	productRepo := repository.NewProductRepository(db)
 	transactionRepo := repository.NewTransactionRepository(db)
 
-	// Initialize services
-	jwtService := service.NewJwtService("SECRETKU", "PIJAR-APP", time.Hour*2)
+	// Initialize service dependencies
+	jwtSecret := os.Getenv("JWT_SECRET")
+	appName := os.Getenv("APP_NAME")
+	jwtExpiryStr := os.Getenv("JWT_EXPIRY")
+	jwtExpiry, err := time.ParseDuration(jwtExpiryStr)
+	if err != nil {
+		jwtExpiry = 24 * time.Hour
+		fmt.Printf("Warning: Could not parse JWT_EXPIRY value '%s', using default of 24h: %v\n", jwtExpiryStr, err)
+	}
+	jwtService := service.NewJwtService(jwtSecret, appName, jwtExpiry)
 	restyClient := resty.New()
 	midtransService := service.NewMidtransService(restyClient)
 
-	// Initialize middleware
+	// Initialize middleware components
 	authMiddleware := middleware.NewAuthMiddleware(jwtService)
 
-	// Initialize usecases
+	// Initialize usecase layer components
 	userUsecase := usecase.NewUserUsecase(userRepo)
 	authUsecase := usecase.NewAuthUsecase(userRepo, jwtService)
-	paymentUsecase := usecase.NewPaymentUsecase(midtransService, productRepo, transactionRepo)
+	paymentUsecase := usecase.NewPaymentUsecase(midtransService, productRepo, transactionRepo, userRepo)
 
-	// Initialize session repository
+	// Initialize session management components
 	sessionRepo := repository.NewSession(db)
 
-	// Initialize AI coach
+	// Initialize AI coach service with custom prompt and settings
 	deepseek := service.NewDeepSeekClient(os.Getenv("AI_API"))
 	deepseek.SystemPrompt = "You are a professional mental health coach. Your role is to provide empathetic support and guidance. When users need help with decision-making, use the cost-benefit analysis framework to help them think through their options. Maintain a cheerful and supportive tone, but use emoticons sparingly. Keep your responses concise and focused. Avoid repeating yourself. Your goal is to help users gain clarity and make informed decisions about their mental well-being."
 	deepseek.Temperature = 0.7
@@ -157,17 +138,19 @@ func NewServer() *Server {
 
 	coachUsecase := usecase.NewSessionUsecase(sessionRepo, deepseek)
 
-	// Initialize journal
+	// Initialize journal management components
 	journalRepo := repository.NewJournalRepository(db)
 	journalUsecase := usecase.NewJournalUsecase(journalRepo)
 
-	// Initialize topic and article
+	// Initialize topic management components
 	topicRepo := repository.NewTopicRepository(db)
 	topicUsecase := usecase.NewTopicUsecase(topicRepo)
 
+	// Initialize article management components
 	articleRepo := repository.NewArticleRepository(db)
 	articleUsecase := usecase.NewArticleUsecase(articleRepo)
 
+	// Initialize daily goals management components
 	dailyGoalRepo := repository.NewDailyGoalsRepository(db)
 	dailyGoalUC := usecase.NewGoalUseCase(dailyGoalRepo)
 

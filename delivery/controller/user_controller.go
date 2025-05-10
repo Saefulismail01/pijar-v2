@@ -39,7 +39,7 @@ func (uc *UserController) Route() {
 	adminProtected.DELETE("/:id", uc.DeleteUserController)
 	adminProtected.GET("/email/:email", uc.GetUserByEmail)
 
-	// Endpoint untuk membuat user baru (admin only)
+	// Endpoint for creating new user (admin only)
 	log.Println("Registering POST /users endpoint for creating new users")
 	adminProtected.POST("/", uc.CreateUserController)
 	log.Println("POST /users endpoint registered")
@@ -54,7 +54,7 @@ func (uc *UserController) Route() {
 func (uc *UserController) CreateUserController(c *gin.Context) {
 	var userInput model.Users
 
-	// Bind JSON dari request body ke struct userInput
+	// Bind JSON from request body to userInput struct
 	if err := c.ShouldBindJSON(&userInput); err != nil {
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Message: "Bad Request",
@@ -63,10 +63,10 @@ func (uc *UserController) CreateUserController(c *gin.Context) {
 		return
 	}
 
-	// panggil Usecase to create user
+	// Call Usecase to create user
 	createdUser, err := uc.UserUsecase.CreateUserUsecase(userInput)
 	if err != nil {
-		// Kembalikan error yang terjadi
+		// Return the error that occurred
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Message: "Bad Request",
 			Error:   err.Error(),
@@ -74,7 +74,7 @@ func (uc *UserController) CreateUserController(c *gin.Context) {
 		return
 	}
 
-	// Return data user yang berhasil
+	// Return the successfully created user data
 	c.JSON(http.StatusOK, dto.Response{
 		Message: "User created successfully",
 		Data:    createdUser,
@@ -214,20 +214,29 @@ func (uc *UserController) GetOwnProfileController(c *gin.Context) {
 	// Get user ID from the JWT token
 	userIDStr, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found in token"})
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Message: "Unauthorized",
+			Error:   "User ID not found in token",
+		})
 		return
 	}
 
 	userID, err := strconv.Atoi(userIDStr.(string))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID format"})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Invalid user ID",
+			Error:   "Invalid user ID format",
+		})
 		return
 	}
 
 	// Get user profile
 	user, err := uc.UserUsecase.GetUserByIDUsecase(int(userID))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{
+			Message: "User not found",
+			Error:   "User not found",
+		})
 		return
 	}
 
@@ -239,20 +248,29 @@ func (uc *UserController) UpdateOwnProfileController(c *gin.Context) {
 	// Get user ID from the JWT token
 	userIDStr := c.Param("id")
 	if userIDStr == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found in token"})
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Message: "Unauthorized",
+			Error:   "User ID not found in token",
+		})
 		return
 	}
 
 	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID format"})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Invalid user ID format",
+			Error:   "invalid user ID format",
+		})
 		return
 	}
 
 	// Get existing user to preserve password if not updating it
 	existingUser, err := uc.UserUsecase.GetUserByIDUsecase(userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{
+			Message: "User not found",
+			Error:   "user not found",
+		})
 		return
 	}
 
@@ -266,7 +284,10 @@ func (uc *UserController) UpdateOwnProfileController(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&updateRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Invalid request body",
+			Error:   "invalid request body",
+		})
 		return
 	}
 
@@ -282,7 +303,10 @@ func (uc *UserController) UpdateOwnProfileController(c *gin.Context) {
 	if updateRequest.Password != "" {
 		hashedPassword, err := service.HashPassword(updateRequest.Password)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+			c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+				Message: "Failed to hash password",
+				Error:   "failed to hash password",
+			})
 			return
 		}
 		user.PasswordHash = hashedPassword
@@ -291,14 +315,17 @@ func (uc *UserController) UpdateOwnProfileController(c *gin.Context) {
 	// Call the usecase to update the user
 	updatedUser, err := uc.UserUsecase.UpdateUserUsecase(userID, user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Failed to update user",
+			Error:   "failed to update user",
+		})
 		return
 	}
 
 	// Return the updated user data
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Profile updated successfully",
-		"user":    updatedUser,
+	c.JSON(http.StatusOK, dto.Response{
+		Message: "Profile updated successfully",
+		Data:    updatedUser,
 	})
 }
 

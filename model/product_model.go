@@ -4,7 +4,6 @@ import (
 	"time"
 )
 
-// Product adalah model untuk produk
 type Product struct {
 	ID          int       `json:"id"`
 	Name        string    `json:"name"`

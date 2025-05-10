@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"pijar/middleware"
 	"pijar/model"
+	"pijar/model/dto"
 	"pijar/usecase"
 	"pijar/utils/service"
 	"strconv"
@@ -41,7 +42,7 @@ func (c *JournalController) Route() {
 	adminRoutes := journalGroup.Use(c.aM.RequireToken("ADMIN"))
 	{
 		adminRoutes.GET("", c.GetAllJournals)
-		adminRoutes.GET("/:journalID", c.GetJournalByID) // Khusus Admin
+		adminRoutes.GET("/:journalID", c.GetJournalByID) // Admin Only
 
 	}
 }
@@ -55,13 +56,19 @@ func (c *JournalController) CreateJournal(ctx *gin.Context) {
 
 	// Pastikan UserID ada dan valid
 	if journal.UserID <= 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "UserID is required"})
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "UserID is required",
+			Error:   "UserID cannot be empty",
+		})
 		return
 	}
 
 	// Pastikan Judul, Isi, dan Perasaan ada
 	if journal.Judul == "" || journal.Isi == "" || journal.Perasaan == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Judul, Isi, dan Perasaan wajib diisi"})
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Missing required fields",
+			Error:   "Judul, Isi, dan Perasaan wajib diisi",
+		})
 		return
 	}
 
@@ -69,7 +76,10 @@ func (c *JournalController) CreateJournal(ctx *gin.Context) {
 	journal.CreatedAt = time.Now()
 
 	if err := c.usecase.Create(ctx, &journal); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Failed to create journal",
+			Error:   err.Error(),
+		})
 		return
 	}
 
@@ -79,7 +89,10 @@ func (c *JournalController) CreateJournal(ctx *gin.Context) {
 func (c *JournalController) GetAllJournals(ctx *gin.Context) {
 	journals, err := c.usecase.FindAll(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Failed to fetch journals",
+			Error:   err.Error(),
+		})
 		return
 	}
 
@@ -89,13 +102,19 @@ func (c *JournalController) GetAllJournals(ctx *gin.Context) {
 func (c *JournalController) GetJournalsByUserID(ctx *gin.Context) {
 	userID, err := strconv.Atoi(ctx.Param("userID"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Invalid user ID",
+			Error:   "invalid user ID",
+		})
 		return
 	}
 
 	journals, err := c.usecase.FindByUserID(ctx, userID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Failed to fetch journals",
+			Error:   err.Error(),
+		})
 		return
 	}
 
@@ -105,13 +124,19 @@ func (c *JournalController) GetJournalsByUserID(ctx *gin.Context) {
 func (c *JournalController) GetJournalByID(ctx *gin.Context) {
 	journalID, err := strconv.Atoi(ctx.Param("journalID"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid journal ID"})
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Invalid journal ID",
+			Error:   "invalid journal ID",
+		})
 		return
 	}
 
 	journal, err := c.usecase.FindByID(ctx, journalID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Failed to fetch journals",
+			Error:   err.Error(),
+		})
 		return
 	}
 
@@ -121,14 +146,20 @@ func (c *JournalController) GetJournalByID(ctx *gin.Context) {
 func (c *JournalController) UpdateJournal(ctx *gin.Context) {
 	journalID, err := strconv.Atoi(ctx.Param("journalID"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid journal ID"})
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Invalid journal ID",
+			Error:   "invalid journal ID",
+		})
 		return
 	}
 
 	// Get existing journal to get the correct user_id
 	existingJournal, err := c.usecase.FindByID(ctx, journalID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Failed to fetch journals",
+			Error:   err.Error(),
+		})
 		return
 	}
 
@@ -153,7 +184,10 @@ func (c *JournalController) UpdateJournal(ctx *gin.Context) {
 func (c *JournalController) DeleteJournal(ctx *gin.Context) {
 	journalID, err := strconv.Atoi(ctx.Param("journalID"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid journal ID"})
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Invalid journal ID",
+			Error:   "invalid journal ID",
+		})
 		return
 	}
 
@@ -168,18 +202,27 @@ func (c *JournalController) DeleteJournal(ctx *gin.Context) {
 func (c *JournalController) ExportJournalsToPDF(ctx *gin.Context) {
 	userID, err := strconv.Atoi(ctx.Param("userID"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Invalid user ID",
+			Error:   "invalid user ID",
+		})
 		return
 	}
 
 	journals, err := c.usecase.FindByUserID(ctx, userID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Failed to fetch journals",
+			Error:   err.Error(),
+		})
 		return
 	}
 
 	if len(journals) == 0 {
-		ctx.JSON(http.StatusNotFound, gin.H{"message": "no journals found for this user"})
+		ctx.JSON(http.StatusNotFound, dto.ErrorResponse{
+			Message: "No journals found for this user",
+			Error:   "no journals found for this user",
+		})
 		return
 	}
 
@@ -187,7 +230,10 @@ func (c *JournalController) ExportJournalsToPDF(ctx *gin.Context) {
 	pdfJournals := service.ConvertToPDFFormat(journals)
 	pdf, err := service.GenerateJournalsPDF(pdfJournals)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate PDF"})
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Failed to generate PDF",
+			Error:   "failed to generate PDF",
+		})
 		return
 	}
 
@@ -197,7 +243,10 @@ func (c *JournalController) ExportJournalsToPDF(ctx *gin.Context) {
 
 	// Output PDF to response writer
 	if err := pdf.Output(ctx.Writer); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate PDF"})
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Failed to generate PDF",
+			Error:   "failed to generate PDF",
+		})
 		return
 	}
 }
