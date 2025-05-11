@@ -62,7 +62,7 @@ func (h *SessionHandler) HandleStartSession(c *gin.Context) {
 		return
 	}
 
-	sessionID, response, err := h.usecase.StartSession(userID, req.UserInput)
+	sessionID, response, err := h.usecase.StartSession(c, userID, req.UserInput)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 			Message: "Internal Server Error",
@@ -109,7 +109,7 @@ func (h *SessionHandler) HandleContinueSession(c *gin.Context) {
 		return
 	}
 
-	response, err := h.usecase.ContinueSession(userID, sessionID, req.UserInput)
+	response, err := h.usecase.ContinueSession(c, userID, sessionID, req.UserInput)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 			Message: "Internal Server Error",
@@ -160,7 +160,7 @@ func (h *SessionHandler) HandleGetSessionHistory(c *gin.Context) {
 		}
 	}
 
-	history, err := h.usecase.GetSessionHistory(userID, sessionID, limit)
+	history, err := h.usecase.GetSessionHistory(c, userID, sessionID, limit)
 	if err != nil {
 		if err.Error() == "sesi tidak ditemukan atau tidak dapat diakses" {
 			c.JSON(http.StatusForbidden, dto.ErrorResponse{
@@ -196,7 +196,7 @@ func (h *SessionHandler) HandleGetUserSessions(c *gin.Context) {
 		return
 	}
 
-	sessions, err := h.usecase.GetUserSessions(userID)
+	sessions, err := h.usecase.GetUserSessions(c, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 			Message: "Internal Server Error",
@@ -230,7 +230,7 @@ func (h *SessionHandler) HandleDeleteSession(c *gin.Context) {
 		return
 	}
 
-	err = h.usecase.DeleteSession(userID, sessionID)
+	err = h.usecase.DeleteSession(c, userID, sessionID)
 	if err != nil {
 		if err.Error() == "session not found or not owned by user" {
 			c.JSON(http.StatusNotFound, dto.ErrorResponse{

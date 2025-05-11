@@ -326,36 +326,6 @@ func (r *articleRepository) SearchArticlesByTitle(ctx context.Context, title str
 	return articles, nil
 }
 
-// func (r *articleRepository) UpdateArticle(ctx context.Context, article *model.Article) error {
-// 	query := `
-// 		UPDATE articles
-// 		SET title = $1, content = $2, source = $3, topic_id = $4, updated_at = $5
-// 		WHERE id = $6`
-
-// 	result, err := r.db.ExecContext(ctx, query,
-// 		article.Title,
-// 		article.Content,
-// 		article.Source,
-// 		article.IDTopic,
-// 		time.Now(),
-// 		article.ID,
-// 	)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to update article: %w", err)
-// 	}
-
-// 	rowsAffected, err := result.RowsAffected()
-// 	if err != nil {
-// 		return fmt.Errorf("failed to get rows affected: %w", err)
-// 	}
-
-// 	if rowsAffected == 0 {
-// 		return errors.New("article not found")
-// 	}
-
-// 	return nil
-// }
-
 func (r *articleRepository) DeleteArticle(ctx context.Context, id int) error {
 	query := `DELETE FROM articles WHERE id = $1`
 

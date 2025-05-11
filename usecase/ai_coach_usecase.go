@@ -2,17 +2,18 @@ package usecase
 
 import (
 	"fmt"
+	"context"
 	"pijar/model"
 	"pijar/repository"
 	"pijar/utils/service"
 )
 
 type SessionUsecase interface {
-	StartSession(userID int, userInput string) (string, string, error)
-	ContinueSession(userID int, sessionID string, userInput string) (string, error)
-	GetSessionHistory(userID int, sessionID string, limit int) ([]model.Message, error)
-	GetUserSessions(userID int) ([]model.CoachSession, error)
-	DeleteSession(userID int, sessionID string) error
+	StartSession(c context.Context, userID int, userInput string) (string, string, error)
+	ContinueSession(c context.Context, userID int, sessionID string, userInput string) (string, error)
+	GetSessionHistory(c context.Context, userID int, sessionID string, limit int) ([]model.Message, error)
+	GetUserSessions(c context.Context, userID int) ([]model.CoachSession, error)
+	DeleteSession(c context.Context, userID int, sessionID string) error
 }
 
 type sessionUsecase struct {
@@ -20,15 +21,15 @@ type sessionUsecase struct {
 	ai   *service.DeepSeekClient
 }
 
-func (u *sessionUsecase) StartSession(userID int, userInput string) (string, string, error) {
+func (u *sessionUsecase) StartSession(c context.Context, userID int, userInput string) (string, string, error) {
 	// Buat sesi baru
-	sessionID, err := u.repo.CreateSession(userID, userInput)
+	sessionID, err := u.repo.CreateSession(c, userID, userInput)
 	if err != nil {
 		return "", "", fmt.Errorf("gagal membuat sesi: %w", err)
 	}
 
 	// Dapatkan konteks percakapan
-	ctx, err := u.repo.GetOrCreateConversationContext(userID, sessionID)
+	ctx, err := u.repo.GetOrCreateConversationContext(c, userID, sessionID)
 	if err != nil {
 		return "", "", fmt.Errorf("gagal mendapatkan konteks: %w", err)
 	}
@@ -52,21 +53,21 @@ func (u *sessionUsecase) StartSession(userID int, userInput string) (string, str
 	})
 
 	// Simpan konteks yang diperbarui
-	if err := u.repo.SaveConversationContext(ctx); err != nil {
+	if err := u.repo.SaveConversationContext(c, ctx); err != nil {
 		return "", "", fmt.Errorf("gagal menyimpan konteks: %w", err)
 	}
 
 	// Update respons ke DB
-	if err := u.repo.UpdateSessionResponse(sessionID, aiResp); err != nil {
+	if err := u.repo.UpdateSessionResponse(c, sessionID, aiResp); err != nil {
 		return "", "", fmt.Errorf("gagal memperbarui respons: %w", err)
 	}
 
 	return sessionID, aiResp, nil
 }
 
-func (u *sessionUsecase) ContinueSession(userID int, sessionID string, userInput string) (string, error) {
+func (u *sessionUsecase) ContinueSession(c context.Context, userID int, sessionID string, userInput string) (string, error) {
 	// Dapatkan konteks percakapan
-	ctx, err := u.repo.GetOrCreateConversationContext(userID, sessionID)
+	ctx, err := u.repo.GetOrCreateConversationContext(c, userID, sessionID)
 	if err != nil {
 		return "", fmt.Errorf("gagal mendapatkan konteks: %w", err)
 	}
@@ -92,28 +93,28 @@ func (u *sessionUsecase) ContinueSession(userID int, sessionID string, userInput
 	ctx.Messages = append(ctx.Messages, aiMessage)
 
 	// Simpan pesan user dan respons AI ke database
-	if err := u.repo.SaveConversation(userID, sessionID, userInput, aiResp); err != nil {
+	if err := u.repo.SaveConversation(c, userID, sessionID, userInput, aiResp); err != nil {
 		return "", fmt.Errorf("gagal menyimpan percakapan: %w", err)
 	}
 
 	// Simpan konteks yang diperbarui
-	if err := u.repo.SaveConversationContext(ctx); err != nil {
+	if err := u.repo.SaveConversationContext(c, ctx); err != nil {
 		return "", fmt.Errorf("gagal menyimpan konteks: %w", err)
 	}
 
 	return aiResp, nil
 }
 
-func (u *sessionUsecase) GetSessionHistory(userID int, sessionID string, limit int) ([]model.Message, error) {
-	return u.repo.GetSessionHistory(userID, sessionID, limit)
+func (u *sessionUsecase) GetSessionHistory(c context.Context, userID int, sessionID string, limit int) ([]model.Message, error) {
+	return u.repo.GetSessionHistory(c, userID, sessionID, limit)
 }
 
-func (u *sessionUsecase) GetUserSessions(userID int) ([]model.CoachSession, error) {
-	return u.repo.GetUserSessions(userID)
+func (u *sessionUsecase) GetUserSessions(c context.Context, userID int) ([]model.CoachSession, error) {
+	return u.repo.GetUserSessions(c, userID)
 }
 
-func (u *sessionUsecase) DeleteSession(userID int, sessionID string) error {
-	return u.repo.DeleteSession(userID, sessionID)
+func (u *sessionUsecase) DeleteSession(c context.Context, userID int, sessionID string) error {
+	return u.repo.DeleteSession(c, userID, sessionID)
 }
 
 func NewSessionUsecase(repo repository.CoachSessionRepository, aiClient *service.DeepSeekClient) SessionUsecase {

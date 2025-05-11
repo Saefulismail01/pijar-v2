@@ -10,24 +10,19 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-
-
 type AuthController struct {
 	rg          *gin.RouterGroup
 	jwtService  service.JwtService
 	AuthUsecase usecase.AuthUsecase
 }
 
-
 func NewAuthController(rg *gin.RouterGroup, jwt service.JwtService, authUC usecase.AuthUsecase) *AuthController {
 	return &AuthController{
-		rg:          rg, 
+		rg:          rg,
 		jwtService:  jwt,
 		AuthUsecase: authUC,
 	}
 }
-
-
 
 func (ac *AuthController) Route() {
 	ac.rg.POST("/register", ac.Register)
@@ -44,8 +39,10 @@ func (a *AuthController) Register(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Bad Request",
+			Error:   "invalid input",
+		})
 		return
 	}
 
@@ -65,7 +62,7 @@ func (a *AuthController) Register(c *gin.Context) {
 		PasswordHash: hashedPassword,
 		BirthYear:    input.BirthYear,
 		Phone:        input.Phone,
-		Role: 		  "user",
+		Role:         "user",
 	}
 
 	authResp, err := a.AuthUsecase.Register(user, input.Password)
@@ -78,12 +75,7 @@ func (a *AuthController) Register(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, authResp)
-	c.JSON(http.StatusCreated, authResp)
 }
-
-
-
-
 
 func (a *AuthController) Login(c *gin.Context) {
 	var input struct {
@@ -97,8 +89,6 @@ func (a *AuthController) Login(c *gin.Context) {
 		})
 		return
 	}
-
-
 
 	authResp, err := a.AuthUsecase.Login(input.Email, input.Password)
 	if err != nil {

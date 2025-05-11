@@ -79,9 +79,6 @@ CREATE TABLE IF NOT EXISTS articles (
     title VARCHAR(255) NOT NULL,
     content TEXT NOT NULL,
     source VARCHAR(255) NOT NULL,
-    author VARCHAR(100),
-    category VARCHAR(50),
-    estimated_read_time INTEGER,
     topic_id INTEGER NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -128,6 +125,7 @@ CREATE TABLE IF NOT EXISTS user_goals (
     articles_to_read INTEGER[] DEFAULT '{}',
     completed BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated__at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -202,14 +200,17 @@ INSERT INTO products (name, description, price) VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- Sample admin user
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+
 INSERT INTO users (name, email, password_hash, birth_year, phone, role) 
 VALUES (
     'Admin User', 
     'admin1@example.com', 
-    '$2a$10$VQYFCiCye2edww8xhjnbpOp9uhM0QSJHSw/bCNekp/VoeEABxTrXe', 
-    1990, 
+    crypt('passwordAdmin', gen_salt('bf', 10)),
+	1990, 
     '08123456789', 
-    'ADMIN'),
+    'ADMIN')
 ON CONFLICT (email) DO NOTHING;
 
 INSERT INTO users (name, email, password_hash, birth_year, phone, role) 
@@ -229,11 +230,12 @@ INSERT INTO topics (user_id, preference) VALUES
 ON CONFLICT DO NOTHING;
 
 -- Sample articles (assumes topic_ids 1, 2, 3 exist)
-INSERT INTO articles (title, content, source, author, category, estimated_read_time, topic_id) VALUES
-('Getting Started with Go', 'This article covers the basics of Go programming language. Go is an open source programming language designed at Google that makes it easy to build simple, reliable, and efficient software. It combines the development speed of working in a dynamic language like Python with the performance and safety of a compiled language like C or C++. In this comprehensive guide, we will explore the fundamentals of Go, including its syntax, data types, control structures, functions, methods, interfaces, and concurrency patterns. By the end of this article, you will have a solid understanding of Go programming and be able to write your own Go applications.', 'Go Blog', 'Go Team', 'Programming', 15, 1),
-('Effective Time Management', 'Learn how to manage your time effectively with proven techniques and strategies. Time management is the process of planning and exercising conscious control of time spent on specific activities, especially to increase effectiveness, efficiency, and productivity. Poor time management can result in missed deadlines, inadequate work quality, higher stress levels, and poor professional reputation. This article explores various time management techniques including the Pomodoro Technique, Eisenhower Box, time blocking, and the 80/20 rule. We will also discuss how to identify and eliminate time-wasting activities, set appropriate boundaries, and develop sustainable productivity habits that can transform your work and personal life.', 'Productivity Blog', 'Productivity Expert', 'Productivity', 10, 2),
-('Introduction to PostgreSQL', 'A comprehensive guide to PostgreSQL database system. PostgreSQL is a powerful, open-source object-relational database system with over 30 years of active development that has earned it a strong reputation for reliability, feature robustness, and performance. This guide covers PostgreSQL installation, basic SQL commands, advanced features like stored procedures, triggers, views, and extensions, as well as performance optimization techniques. You will learn how to design efficient database schemas, implement proper indexing strategies, and scale your PostgreSQL deployment. The article also explores PostgreSQL''s unique features compared to other database systems, including its extensive data type support, sophisticated locking mechanism, and robust transaction processing capabilities. Whether you are a beginner or an experienced database professional, this guide will help you leverage the full power of PostgreSQL for your applications.', 'Database Journal', 'DB Admin', 'Database', 20, 3)
+INSERT INTO articles (title, content, source, topic_id) VALUES
+('Getting Started with Go', 'This article covers the basics of Go programming language. Go is an open source programming language designed at Google that makes it easy to build simple, reliable, and efficient software. It combines the development speed of working in a dynamic language like Python with the performance and safety of a compiled language like C or C++. In this comprehensive guide, we will explore the fundamentals of Go, including its syntax, data types, control structures, functions, methods, interfaces, and concurrency patterns. By the end of this article, you will have a solid understanding of Go programming and be able to write your own Go applications.', 'Go Blog', 1),
+('Effective Time Management', 'Learn how to manage your time effectively with proven techniques and strategies. Time management is the process of planning and exercising conscious control of time spent on specific activities, especially to increase effectiveness, efficiency, and productivity. Poor time management can result in missed deadlines, inadequate work quality, higher stress levels, and poor professional reputation. This article explores various time management techniques including the Pomodoro Technique, Eisenhower Box, time blocking, and the 80/20 rule. We will also discuss how to identify and eliminate time-wasting activities, set appropriate boundaries, and develop sustainable productivity habits that can transform your work and personal life.', 'Productivity Blog', 2),
+('Introduction to PostgreSQL', 'A comprehensive guide to PostgreSQL database system. PostgreSQL is a powerful, open-source object-relational database system with over 30 years of active development that has earned it a strong reputation for reliability, feature robustness, and performance. This guide covers PostgreSQL installation, basic SQL commands, advanced features like stored procedures, triggers, views, and extensions, as well as performance optimization techniques. You will learn how to design efficient database schemas, implement proper indexing strategies, and scale your PostgreSQL deployment. The article also explores PostgreSQL''s unique features compared to other database systems, including its extensive data type support, sophisticated locking mechanism, and robust transaction processing capabilities. Whether you are a beginner or an experienced database professional, this guide will help you leverage the full power of PostgreSQL for your applications.', 'Database Journal', 3)
 ON CONFLICT DO NOTHING;
+
 
 -- Sample user goals (assumes user_id 1 and 2 exist)
 INSERT INTO user_goals (user_id, title, task, articles_to_read) VALUES

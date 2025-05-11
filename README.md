@@ -42,7 +42,7 @@ Pijar API is a robust backend service that powers the Pijar application, providi
 | DELETE | `/pijar/users/:id` | Delete user | Admin |
 | GET | `/pijar/users/email/:email` | Find user by email | Admin |
 | GET | `/pijar/profile` | Get own profile | User |
-| PUT | `/pijar/profile` | Update own profile | User |
+| PUT | `/pijar/profile/:id` | Update own profile | User |
 
 ### Goals Management
 
@@ -68,7 +68,7 @@ Pijar API is a robust backend service that powers the Pijar application, providi
 | POST | `/pijar/journals` | Create new journal | User |
 | GET | `/pijar/journals/user/:userID` | Get journals by user ID | User |
 | PUT | `/pijar/journals/:journalID` | Update journal | User |
-| DELETE | `/pijar/journals/:journalID` | Delete journal | User |
+| DELETE | `/pijar/journals/:userID/:journalID` | Delete journal | User |
 | GET | `/pijar/journals/user/:userID/export` | Export journals to PDF | User |
 | GET | `/pijar/journals` | Get all journals | Admin |
 | GET | `/pijar/journals/:journalID` | Get journal by ID | Admin |
@@ -77,10 +77,10 @@ Pijar API is a robust backend service that powers the Pijar application, providi
 
 | Method | Endpoint | Description | Access |
 |--------|----------|-------------|--------|
-| POST | `/pijar/topics` | Create new topic | Admin |
+| POST | `/pijar/topics` | Create new topic | User |
 | GET | `/pijar/topics` | Get all topics | User |
-| PUT | `/pijar/topics/:id` | Update topic | Admin |
-| DELETE | `/pijar/topics/:id` | Delete topic | Admin |
+| PUT | `/pijar/topics/:id` | Update topic | User |
+| DELETE | `/pijar/topics/:id` | Delete topic | User |
 | GET | `/pijar/topics/:id` | Get topic by ID | Admin |
 
 ### Article Management
@@ -89,7 +89,7 @@ Pijar API is a robust backend service that powers the Pijar application, providi
 |--------|----------|-------------|--------|
 | GET | `/pijar/articles` | Get all articles with pagination | User |
 | GET | `/pijar/articles/all` | Get all articles without pagination | User |
-| POST | `/pijar/articles/generate` | Generate new article | Admin |
+| POST | `/pijar/articles/generate` | Generate new article | User |
 | POST | `/pijar/articles/search` | Search articles by title | User |
 | GET | `/pijar/articles/:id` | Get article by ID | Admin |
 | DELETE | `/pijar/articles/:id` | Delete article | Admin |
@@ -101,7 +101,9 @@ Pijar API is a robust backend service that powers the Pijar application, providi
 | POST | `/pijar/sessions/start/:user_id` | Start new coaching session | User |
 | POST | `/pijar/sessions/continue/:sessionId/:user_id` | Continue coaching session | User |
 | GET | `/pijar/sessions/history/:sessionId/:user_id` | Get session history | User |
+| DELETE | `/pijar/sessions/:sessionId/:user_id` | Delete session | User |
 | GET | `/pijar/sessions/user/:user_id` | Get all user sessions | Admin |
+
 
 ## Installation
 
@@ -113,7 +115,7 @@ Pijar API is a robust backend service that powers the Pijar application, providi
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/enigma-camp/pijar.git
+git clone https://git.enigmacamp.com/enigma-camp/enigmacamp-2.0/batch-40-golang/final-project/team-3/pijar
 cd pijar
 ```
 
@@ -211,7 +213,7 @@ Detailed API documentation is available:
 - **Database**: PostgreSQL/MySQL
 - **Authentication**: JWT
 - **Payment Gateway**: Midtrans
-- **Documentation**: Swagger
+- **Documentation**: Postman
 - **Containerization**: Docker
 
 ## License

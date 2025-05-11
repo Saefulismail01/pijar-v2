@@ -1,6 +1,7 @@
 package controller
 
 import (
+	dbsql "database/sql"
 	"net/http"
 	"pijar/middleware"
 	"pijar/model"
@@ -35,7 +36,7 @@ func (c *JournalController) Route() {
 		userRoutes.POST("/", c.CreateJournal)
 		userRoutes.GET("/user/:userID", c.GetJournalsByUserID)
 		userRoutes.PUT("/:journalID", c.UpdateJournal)
-		userRoutes.DELETE("/:journalID", c.DeleteJournal)
+		userRoutes.DELETE("/:userID/:journalID", c.DeleteJournal)
 		userRoutes.GET("/user/:userID/export", c.ExportJournalsToPDF)
 	}
 
@@ -182,21 +183,63 @@ func (c *JournalController) UpdateJournal(ctx *gin.Context) {
 }
 
 func (c *JournalController) DeleteJournal(ctx *gin.Context) {
+	// Get journal ID from URL parameter
 	journalID, err := strconv.Atoi(ctx.Param("journalID"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Invalid journal ID",
-			Error:   "invalid journal ID",
+			Message: "Invalid journal ID format",
+			Error:   "invalid_journal_id",
 		})
 		return
 	}
 
-	if err := c.usecase.Delete(ctx, journalID); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	// Get user ID from context (assuming it's set by auth middleware)
+	userID, err := strconv.Atoi(ctx.Param("userID"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Invalid user ID format",
+			Error:   "invalid_user_id",
+		})
+		return
+	}
+	// First, get the journal to check if it exists and belongs to the user
+	journal, err := c.usecase.FindByID(ctx, journalID)
+	if err != nil {
+		if err == dbsql.ErrNoRows {
+			ctx.JSON(http.StatusNotFound, dto.ErrorResponse{
+				Message: "Journal not found",
+				Error:   "not_found",
+			})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Failed to fetch journal",
+			Error:   "internal_server_error",
+		})
 		return
 	}
 
-	ctx.Status(http.StatusNoContent)
+	// Verify ownership (assuming journal has a UserID field)
+	if journal.UserID != userID {
+		ctx.JSON(http.StatusForbidden, dto.ErrorResponse{
+			Message: "You don't have permission to delete this journal",
+			Error:   "forbidden",
+		})
+		return
+	}
+
+	// Proceed with deletion
+	if err := c.usecase.Delete(ctx, journalID); err != nil {
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Failed to delete journal",
+			Error:   "internal_server_error",
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, dto.Response{
+		Message: "Journal deleted successfully",
+	})
 }
 
 func (c *JournalController) ExportJournalsToPDF(ctx *gin.Context) {

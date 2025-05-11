@@ -48,7 +48,7 @@ func (uc *UserController) Route() {
 	userProfile := uc.rg.Group("/profile")
 	userProfile.Use(uc.authMiddleware.RequireToken("USER", "ADMIN")) // Both users and admins can access
 	userProfile.GET("/", uc.GetOwnProfileController)
-	userProfile.PUT("/", uc.UpdateOwnProfileController)
+	userProfile.PUT("/:id", uc.UpdateOwnProfileController)
 }
 
 func (uc *UserController) CreateUserController(c *gin.Context) {

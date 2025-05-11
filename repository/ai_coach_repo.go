@@ -6,27 +6,27 @@ import (
 	"fmt"
 	"pijar/model"
 	"time"
-
+	"context"
 	"github.com/google/uuid"
 )
 
 type CoachSessionRepository interface {
 	// Session Management
-	CreateSession(userID int, input string) (string, error)
-	UpdateSessionResponse(sessionID string, response string) error
-	GetOrCreateConversationContext(userID int, sessionID string) (*model.ConversationContext, error)
-	SaveConversationContext(ctx *model.ConversationContext) error
-	SaveConversation(userID int, sessionID, userInput, aiResponse string) error
-	GetSessionHistory(userID int, sessionID string, limit int) ([]model.Message, error)
-	GetUserSessions(userID int) ([]model.CoachSession, error)
-	DeleteSession(userID int, sessionID string) error
+	CreateSession(c context.Context, userID int, input string) (string, error)
+	UpdateSessionResponse(c context.Context, sessionID string, response string) error
+	GetOrCreateConversationContext(c context.Context, userID int, sessionID string) (*model.ConversationContext, error)
+	SaveConversationContext(c context.Context, ctx *model.ConversationContext) error
+	SaveConversation(c context.Context, userID int, sessionID, userInput, aiResponse string) error
+	GetSessionHistory(c context.Context, userID int, sessionID string, limit int) ([]model.Message, error)
+	GetUserSessions(c context.Context, userID int) ([]model.CoachSession, error)
+	DeleteSession(c context.Context, userID int, sessionID string) error
 }
 
 type coachSessionRepository struct {
 	db *sql.DB
 }
 
-func (r *coachSessionRepository) CreateSession(userID int, input string) (string, error) {
+func (r *coachSessionRepository) CreateSession(c context.Context, userID int, input string) (string, error) {
 	// Cek apakah user ada
 	var exists bool
 	checkUserQuery := `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)`
@@ -57,7 +57,7 @@ func (r *coachSessionRepository) CreateSession(userID int, input string) (string
 	return sessionID, nil
 }
 
-func (r *coachSessionRepository) UpdateSessionResponse(sessionID string, response string) error {
+func (r *coachSessionRepository) UpdateSessionResponse(c context.Context, sessionID string, response string) error {
 	query := `UPDATE coach_sessions 
 	         SET ai_response = $1, updated_at = $2 
 	         WHERE session_id = $3`
@@ -65,7 +65,7 @@ func (r *coachSessionRepository) UpdateSessionResponse(sessionID string, respons
 	return err
 }
 
-func (r *coachSessionRepository) GetOrCreateConversationContext(userID int, sessionID string) (*model.ConversationContext, error) {
+func (r *coachSessionRepository) GetOrCreateConversationContext(c context.Context, userID int, sessionID string) (*model.ConversationContext, error) {
 	// Cek apakah session ada
 	var exists bool
 	checkSessionQuery := `SELECT EXISTS(SELECT 1 FROM coach_sessions WHERE session_id = $1 AND user_id = $2)`
@@ -106,7 +106,7 @@ func (r *coachSessionRepository) GetOrCreateConversationContext(userID int, sess
 	return &ctx, nil
 }
 
-func (r *coachSessionRepository) SaveConversation(userID int, sessionID, userInput, aiResponse string) error {
+func (r *coachSessionRepository) SaveConversation(c context.Context, userID int, sessionID, userInput, aiResponse string) error {
 	// Cek apakah sesi sudah ada
 	var exists bool
 	err := r.db.QueryRow(
@@ -146,7 +146,7 @@ func (r *coachSessionRepository) SaveConversation(userID int, sessionID, userInp
 	return nil
 }
 
-func (r *coachSessionRepository) SaveConversationContext(ctx *model.ConversationContext) error {
+func (r *coachSessionRepository) SaveConversationContext(c context.Context, ctx *model.ConversationContext) error {
 	// Konversi konteks ke JSON
 	contextJSON, err := json.Marshal(ctx)
 	if err != nil {
@@ -168,7 +168,7 @@ func (r *coachSessionRepository) SaveConversationContext(ctx *model.Conversation
 	return nil
 }
 
-func (r *coachSessionRepository) GetSessionHistory(userID int, sessionID string, limit int) ([]model.Message, error) {
+func (r *coachSessionRepository) GetSessionHistory(c context.Context, userID int, sessionID string, limit int) ([]model.Message, error) {
 	// Cek apakah session ada dan milik user yang benar
 	var exists bool
 	err := r.db.QueryRow(
@@ -213,7 +213,7 @@ func (r *coachSessionRepository) GetSessionHistory(userID int, sessionID string,
 	return ctx.Messages, nil
 }
 
-func (r *coachSessionRepository) GetUserSessions(userID int) ([]model.CoachSession, error) {
+func (r *coachSessionRepository) GetUserSessions(c context.Context, userID int) ([]model.CoachSession, error) {
 	var sessions []model.CoachSession
 
 	// Cek apakah user ada
@@ -260,7 +260,7 @@ func (r *coachSessionRepository) GetUserSessions(userID int) ([]model.CoachSessi
 	return sessions, nil
 }
 
-func (r *coachSessionRepository) DeleteSession(userID int, sessionID string) error {
+func (r *coachSessionRepository) DeleteSession(c context.Context, userID int, sessionID string) error {
 	query := `DELETE FROM coach_sessions WHERE user_id = $1 AND session_id = $2 `
 	result, err := r.db.Exec(query, userID, sessionID)
 	if err != nil {
