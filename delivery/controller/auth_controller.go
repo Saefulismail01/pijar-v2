@@ -3,6 +3,7 @@ package controller
 import (
 	"net/http"
 	"pijar/model"
+	"pijar/model/dto"
 	"pijar/usecase"
 	"pijar/utils/service"
 
@@ -51,8 +52,10 @@ func (a *AuthController) Register(c *gin.Context) {
 	// Hash password
 	hashedPassword, err := service.HashPassword(input.Password)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "gagal mengenkripsi password"})
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "gagal mengenkripsi password"})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Failed to encrypt password",
+			Error:   "gagal mengenkripsi password",
+		})
 		return
 	}
 
@@ -67,8 +70,10 @@ func (a *AuthController) Register(c *gin.Context) {
 
 	authResp, err := a.AuthUsecase.Register(user, input.Password)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Registration failed",
+			Error:   err.Error(),
+		})
 		return
 	}
 
@@ -86,8 +91,10 @@ func (a *AuthController) Login(c *gin.Context) {
 		Password string `json:"password"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Invalid request body",
+			Error:   err.Error(),
+		})
 		return
 	}
 
@@ -95,11 +102,12 @@ func (a *AuthController) Login(c *gin.Context) {
 
 	authResp, err := a.AuthUsecase.Login(input.Email, input.Password)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Message: "Invalid credentials",
+			Error:   err.Error(),
+		})
 		return
 	}
 
-	c.JSON(http.StatusOK, authResp)
 	c.JSON(http.StatusOK, authResp)
 }

@@ -47,7 +47,7 @@ func (u *AuthUsecase) Login(email, password string) (model.AuthResponse, error) 
 }
 
 func (u *AuthUsecase) Register(user model.Users, plainPassword string) (map[string]interface{}, error) {
-	// Cek apakah email sudah terdaftar
+	// Check if email is already registered
 	exists, err := u.userRepo.IsEmailExists(user.Email)
 	if err != nil {
 		return nil, err
@@ -56,15 +56,14 @@ func (u *AuthUsecase) Register(user model.Users, plainPassword string) (map[stri
 		return nil, errors.New("email already registered")
 	}
 
-	// Hash password
+	// Hash password and create user
 	hashedPassword, err := service.HashPassword(plainPassword)
 	if err != nil {
 		return nil, err
 	}
 	user.PasswordHash = hashedPassword
-	user.Role = "USER" // role default user biasa
+	user.Role = "USER"
 
-	// Buat user
 	createdUser, err := u.userRepo.CreateUser(user)
 	if err != nil {
 		return nil, err
@@ -72,7 +71,6 @@ func (u *AuthUsecase) Register(user model.Users, plainPassword string) (map[stri
 
 	log.Printf("User successfully registered!")
 
-	// Response - password will be automatically hidden due to json:"-" tag in the model
 	return map[string]interface{}{
 		"message": "Registration successful",
 		"user":    createdUser,

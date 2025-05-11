@@ -4,7 +4,6 @@ import (
 	"time"
 )
 
-// Transaction adalah model untuk transaksi pembayaran
 type Transaction struct {
 	ID         int       `json:"id"`
 	UserID     int       `json:"user_id"`

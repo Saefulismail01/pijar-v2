@@ -5,10 +5,10 @@ import (
 )
 
 type Users struct {
-    ID           int       `json:"id"`              // id di DB == INT dan auto-increment
+    ID           int       `json:"id"`              
     Name         string    `json:"name"`
-    Email        string    `json:"email" binding:"required,email"`         // varchar + unique → string
-    PasswordHash string    `json:"-"`  // Use json:"-" to hide the field
+    Email        string    `json:"email" binding:"required,email"` 
+    PasswordHash string    `json:"-"` 
     BirthYear    int       `json:"birth_year"`
     Phone        string    `json:"phone"`     
     CreatedAt    time.Time `json:"created_at"`

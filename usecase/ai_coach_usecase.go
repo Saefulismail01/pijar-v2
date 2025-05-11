@@ -12,10 +12,11 @@ type SessionUsecase interface {
 	ContinueSession(userID int, sessionID string, userInput string) (string, error)
 	GetSessionHistory(userID int, sessionID string, limit int) ([]model.Message, error)
 	GetUserSessions(userID int) ([]model.CoachSession, error)
+	DeleteSession(userID int, sessionID string) error
 }
 
 type sessionUsecase struct {
-	repo repository.CouchRepository
+	repo repository.CoachSessionRepository
 	ai   *service.DeepSeekClient
 }
 
@@ -111,7 +112,11 @@ func (u *sessionUsecase) GetUserSessions(userID int) ([]model.CoachSession, erro
 	return u.repo.GetUserSessions(userID)
 }
 
-func NewSessionUsecase(repo repository.CouchRepository, aiClient *service.DeepSeekClient) SessionUsecase {
+func (u *sessionUsecase) DeleteSession(userID int, sessionID string) error {
+	return u.repo.DeleteSession(userID, sessionID)
+}
+
+func NewSessionUsecase(repo repository.CoachSessionRepository, aiClient *service.DeepSeekClient) SessionUsecase {
 	return &sessionUsecase{
 		repo: repo,
 		ai:   aiClient,
