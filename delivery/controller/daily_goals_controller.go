@@ -26,20 +26,24 @@ func NewGoalController(
 	rg *gin.RouterGroup,
 	aM middleware.AuthMiddleware,
 ) *dailyGoalsController {
-	return &dailyGoalsController{uc: uc, rg: rg, aM: aM}
+	return &dailyGoalsController{
+        uc: uc,
+        rg: rg,
+        aM: aM,
+    }
 }
 
 func (c *dailyGoalsController) Route() {
 	goalsGroup := c.rg.Group("/goals")
 
-	// Endpoint khusus admin
+	// Endpoint for admin
 	adminRoutes := goalsGroup.Group("")
 	adminRoutes.Use(c.aM.RequireToken("ADMIN"))
 	{
 		adminRoutes.GET("/:user_id", c.GetUserGoals) // [Admin] Get goals by user ID
 	}
 
-	// Endpoint untuk user biasa
+	// Endpoint for all user
 	userRoutes := goalsGroup.Group("")
 	userRoutes.Use(c.aM.RequireToken("USER", "ADMIN"))
 	{
@@ -205,7 +209,7 @@ func (c *dailyGoalsController) CompleteGoalProgress(ctx *gin.Context) {
 		TotalArticles:  len(articles),
 	}
 
-	message := fmt.Sprintf("Article %v is finish", req.ArticleID)
+	message := fmt.Sprintf("Article %v is mark as read", req.ArticleID)
 
 	ctx.JSON(http.StatusOK, dto.Response{
 		Message: message,
