@@ -136,7 +136,7 @@ func (r *dailyGoalsRepository) UpdateGoal(
 		goal.Task,
 		goal.Completed,
 		goal.ID,
-		userID, // Ensure user owns the goal
+		userID,
 	).Scan(
 		&goal.ID,
 		&goal.Title,
@@ -146,6 +146,7 @@ func (r *dailyGoalsRepository) UpdateGoal(
 		&goal.UserID,
 		&goal.CreatedAt,
 	)
+
 	if err != nil {
 		tx.Rollback()
 		return model.UserGoal{}, fmt.Errorf("failed to update goal: %v", err)
