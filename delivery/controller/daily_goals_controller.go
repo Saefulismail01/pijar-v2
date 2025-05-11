@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
@@ -27,10 +26,10 @@ func NewGoalController(
 	aM middleware.AuthMiddleware,
 ) *dailyGoalsController {
 	return &dailyGoalsController{
-        uc: uc,
-        rg: rg,
-        aM: aM,
-    }
+		uc: uc,
+		rg: rg,
+		aM: aM,
+	}
 }
 
 func (c *dailyGoalsController) Route() {
@@ -40,21 +39,22 @@ func (c *dailyGoalsController) Route() {
 	adminRoutes := goalsGroup.Group("")
 	adminRoutes.Use(c.aM.RequireToken("ADMIN"))
 	{
-		adminRoutes.GET("/:user_id", c.GetUserGoals) 
+		adminRoutes.GET("/:user_id", c.GetUserGoals)
 	}
 
 	// Endpoint for all user
 	userRoutes := goalsGroup.Group("")
 	userRoutes.Use(c.aM.RequireToken("USER", "ADMIN"))
 	{
-		userRoutes.POST("/:user_id", c.CreateGoal)                  
-		userRoutes.PUT("/:user_id/:id", c.UpdateGoal)               
-		userRoutes.PUT("/complete-article", c.CompleteGoalProgress) 
-		userRoutes.DELETE("/:user_id/:id", c.DeleteGoal)            
+		userRoutes.POST("/:user_id", c.CreateGoal)
+		userRoutes.PUT("/:user_id/:id", c.UpdateGoal)
+		userRoutes.PUT("/complete-article", c.CompleteGoalProgress)
+		userRoutes.DELETE("/:user_id/:id", c.DeleteGoal)
 	}
 }
 
 func (c *dailyGoalsController) CreateGoal(ctx *gin.Context) {
+	// get user ID from URL (param)
 	userID, err := strconv.Atoi(ctx.Param("user_id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
@@ -73,8 +73,6 @@ func (c *dailyGoalsController) CreateGoal(ctx *gin.Context) {
 		return
 	}
 
-	log.Printf("ArticlesToRead %v", req.ArticlesToRead)
-
 	createdGoal, err := c.uc.CreateGoal(ctx.Request.Context(), userID, req.Title, req.Task, req.ArticlesToRead)
 	if err != nil {
 		if strings.Contains(err.Error(), "invalid article IDs") {
@@ -91,6 +89,7 @@ func (c *dailyGoalsController) CreateGoal(ctx *gin.Context) {
 		return
 	}
 
+	// format response
 	response := dto.GoalResponse{
 		ID:             createdGoal.ID,
 		Title:          createdGoal.Title,
