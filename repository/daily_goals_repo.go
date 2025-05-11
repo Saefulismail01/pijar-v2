@@ -74,7 +74,7 @@ func (r *dailyGoalsRepository) CreateGoal(ctx context.Context, goal *model.UserG
 			progressQuery,
 			goal.ID,
 			articleID,
-			time.Now(),
+			nil,
 			false,
 		)
 		if err != nil {
@@ -82,7 +82,6 @@ func (r *dailyGoalsRepository) CreateGoal(ctx context.Context, goal *model.UserG
 			return model.UserGoal{}, fmt.Errorf("failed to create progress: %v", err)
 		}
 	}
-	// If there are no articles, we don't create any progress records
 
 	// commit transaction if all operations succeed
 	err = tx.Commit()
@@ -106,6 +105,7 @@ func (r *dailyGoalsRepository) UpdateGoal(
 		return model.UserGoal{}, fmt.Errorf("failed to get existing goal: %v", err)
 	}
 
+	// start db transaction
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return model.UserGoal{}, fmt.Errorf("failed to begin transaction: %v", err)
@@ -206,7 +206,7 @@ func (r *dailyGoalsRepository) UpdateGoal(
 		err = tx.QueryRowContext(
 			ctx,
 			`SELECT COUNT(*) FROM user_goals_progress 
-         WHERE id_goals = $1 AND completed = true`,
+             WHERE id_goals = $1 AND completed = true`,
 			goal.ID,
 		).Scan(&completedCount)
 		if err != nil {
@@ -214,27 +214,24 @@ func (r *dailyGoalsRepository) UpdateGoal(
 			return model.UserGoal{}, err
 		}
 
-		var totalArticles int
-		err = tx.QueryRowContext(
-			ctx,
-			"SELECT cardinality(articles_to_read) FROM user_goals WHERE id = $1",
-			goal.ID,
-		).Scan(&totalArticles)
-		if err != nil {
-			tx.Rollback()
-			return model.UserGoal{}, err
-		}
+		// use length articleToRead as total article
+		totalArticles := len(articleToRead)
 
+		// count new status and update to db
+		newStatus := (completedCount == totalArticles && totalArticles > 0)
 		_, err = tx.ExecContext(
 			ctx,
 			"UPDATE user_goals SET completed = $1 WHERE id = $2",
-			completedCount == totalArticles,
+			newStatus,
 			goal.ID,
 		)
 		if err != nil {
 			tx.Rollback()
 			return model.UserGoal{}, err
 		}
+		// Sync juga ke struct goal
+		goal.Completed = newStatus
+
 	}
 
 	// Commit transaction
