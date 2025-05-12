@@ -35,14 +35,6 @@ func NewGoalController(
 func (c *dailyGoalsController) Route() {
 	goalsGroup := c.rg.Group("/goals")
 
-	// Endpoint for admin
-	adminRoutes := goalsGroup.Group("")
-	adminRoutes.Use(c.aM.RequireToken("ADMIN"))
-	{
-		adminRoutes.GET("/:user_id", c.GetUserGoals)
-	}
-
-	// Endpoint for all user
 	userRoutes := goalsGroup.Group("")
 	userRoutes.Use(c.aM.RequireToken("USER", "ADMIN"))
 	{
@@ -50,6 +42,7 @@ func (c *dailyGoalsController) Route() {
 		userRoutes.PUT("/:user_id/:id", c.UpdateGoal)
 		userRoutes.PUT("/complete-article", c.CompleteGoalProgress)
 		userRoutes.DELETE("/:user_id/:id", c.DeleteGoal)
+        userRoutes.GET("/:user_id", c.GetUserGoals)
 	}
 }
 
