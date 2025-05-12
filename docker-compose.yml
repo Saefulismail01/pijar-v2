@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   pijar-db:
     image: postgres:15
@@ -17,7 +15,7 @@ services:
       - "5432:5432"
 
   pijar-app:
-    image: saefulismail01/pijar-app:latest
+    image: saefulismail01/pijar-app:v1.0.0
     container_name: pijar-apps
     env_file: .env
     depends_on:

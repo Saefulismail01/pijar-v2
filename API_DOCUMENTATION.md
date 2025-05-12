@@ -1,12 +1,255 @@
 # Pijar API Documentation
 
 ## Base URL
-`http://localhost:8080/pijar`
+`http://localhost:8884/pijar`
 
 ## Authentication
 All endpoints (except `/register` and `/login`) require a valid JWT token in the Authorization header:
 ```
 Authorization: Bearer <your_jwt_token>
+```
+
+## Error Responses
+
+### 400 Bad Request
+```json
+{
+  "error": "Error message here"
+}
+```
+
+### 401 Unauthorized
+```json
+{
+  "error": "Missing or invalid token"
+}
+```
+
+### 403 Forbidden
+```json
+{
+  "error": "Forbidden: role not allowed"
+}
+```
+
+### 404 Not Found
+```json
+{
+  "error": "Resource not found"
+}
+```
+
+### 500 Internal Server Error
+```json
+{
+  "error": "Internal server error"
+}
+```
+
+## Endpoints
+
+### User Management
+
+#### Get All Users (Admin Only)
+```
+GET /pijar/users
+```
+
+**Headers:**
+```
+Authorization: Bearer <admin_jwt_token>
+```
+
+**Response (Success - 200 OK):**
+```json
+{
+  "message": "Users retrieved successfully",
+  "data": [
+    {
+      "id": 1,
+      "name": "John Doe",
+      "email": "john@example.com",
+      "birth_year": 1990,
+      "phone": "081234567890",
+      "role": "user",
+      "created_at": "2025-05-13T00:00:00Z"
+    }
+  ]
+}
+```
+
+#### Get User by ID (Admin Only)
+```
+GET /pijar/users/:id
+```
+
+**Headers:**
+```
+Authorization: Bearer <admin_jwt_token>
+```
+
+**Response (Success - 200 OK):**
+```json
+{
+  "message": "User retrieved successfully",
+  "data": {
+    "id": 1,
+    "name": "John Doe",
+    "email": "john@example.com",
+    "birth_year": 1990,
+    "phone": "081234567890",
+    "role": "user",
+    "created_at": "2025-05-13T00:00:00Z"
+  }
+}
+```
+
+#### Update User (Admin Only)
+```
+PUT /pijar/users/:id
+```
+
+**Headers:**
+```
+Authorization: Bearer <admin_jwt_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "name": "John Updated",
+  "email": "john.updated@example.com",
+  "birth_year": 1991,
+  "phone": "081234567899",
+  "role": "admin"
+}
+```
+
+**Response (Success - 200 OK):**
+```json
+{
+  "message": "User updated successfully",
+  "data": {
+    "id": 1,
+    "name": "John Updated",
+    "email": "john.updated@example.com",
+    "birth_year": 1991,
+    "phone": "081234567899",
+    "role": "admin",
+    "created_at": "2025-05-13T00:00:00Z",
+    "updated_at": "2025-05-13T01:00:00Z"
+  }
+}
+```
+
+#### Delete User (Admin Only)
+```
+DELETE /pijar/users/:id
+```
+
+**Headers:**
+```
+Authorization: Bearer <admin_jwt_token>
+```
+
+**Response (Success - 200 OK):**
+```json
+{
+  "message": "User deleted successfully"
+}
+```
+
+#### Find User by Email (Admin Only)
+```
+GET /pijar/users/email/:email
+```
+
+**Headers:**
+```
+Authorization: Bearer <admin_jwt_token>
+```
+
+**Response (Success - 200 OK):**
+```json
+{
+  "message": "User found",
+  "data": {
+    "id": 1,
+    "name": "John Doe",
+    "email": "john@example.com",
+    "birth_year": 1990,
+    "phone": "081234567890",
+    "role": "user",
+    "created_at": "2025-05-13T00:00:00Z"
+  }
+}
+```
+
+### User Profile
+
+#### Get Own Profile
+```
+GET /pijar/profile
+```
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response (Success - 200 OK):**
+```json
+{
+  "message": "Profile retrieved successfully",
+  "data": {
+    "id": 1,
+    "name": "John Doe",
+    "email": "john@example.com",
+    "birth_year": 1990,
+    "phone": "081234567890",
+    "role": "user",
+    "created_at": "2025-05-13T00:00:00Z"
+  }
+}
+```
+
+#### Update Own Profile
+```
+PUT /pijar/profile/:id
+```
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "name": "John Updated",
+  "email": "john.updated@example.com",
+  "birth_year": 1991,
+  "phone": "081234567899"
+}
+```
+
+**Response (Success - 200 OK):**
+```json
+{
+  "message": "Profile updated successfully",
+  "data": {
+    "id": 1,
+    "name": "John Updated",
+    "email": "john.updated@example.com",
+    "birth_year": 1991,
+    "phone": "081234567899",
+    "role": "user",
+    "created_at": "2025-05-13T00:00:00Z",
+    "updated_at": "2025-05-13T01:00:00Z"
+  }
+}
 ```
 
 ## Endpoints
@@ -21,27 +264,34 @@ POST /pijar/register
 **Request Body:**
 ```json
 {
-  "name": "John Doe",
-  "email": "john@example.com",
+  "name": "Deny",
+  "email": "deny@example.com",
   "password": "password123",
-  "birth_year": 1990,
+  "birth_year": 2005,
   "phone": "081234567890"
 }
 ```
 
-**Response:**
+**Response (Success - 201 Created):**
 ```json
 {
   "token": "jwt_token_here",
   "user": {
     "id": 1,
-    "name": "John Doe",
-    "email": "john@example.com",
-    "birth_year": 1990,
-    "phone": "081234567890"
+    "name": "Deny",
+    "email": "deny@example.com",
+    "birth_year": 2005,
+    "phone": "081234567890",
+    "created_at": "2025-05-13T00:00:00Z",
+    "updated_at": "2025-05-13T00:00:00Z",
+    "role": "USER"
   }
 }
 ```
+
+**Error Responses:**
+- 400 Bad Request: Invalid input data
+- 500 Internal Server Error: Failed to process registration
 
 #### Login
 ```
@@ -51,35 +301,46 @@ POST /pijar/login
 **Request Body:**
 ```json
 {
-  "email": "john@example.com",
+  "email": "deny@example.com",
   "password": "password123"
 }
 ```
 
-**Response:**
+**Response (Success - 200 OK):**
 ```json
 {
-  "token": "jwt_token_here"
+  "token": "jwt_token_here",
+  "user": {
+    "id": 1,
+    "name": "Deny",
+    "email": "deny@example.com",
+    "birth_year": 2005,
+    "phone": "081234567890",
+    "created_at": "2025-05-13T00:00:00Z",
+    "updated_at": "2025-05-13T00:00:00Z",
+    "role": "USER"
+  }
 }
 ```
 
-### AI Coach
+**Error Responses:**
+- 400 Bad Request: Invalid input format
+- 401 Unauthorized: Invalid credentials
+
+### AI Coach Sessions
 
 Endpoints untuk berinteraksi dengan AI Coach yang memberikan bimbingan karir dan pengembangan diri.
 
-#### Chat with AI Coach
+#### Start New Session
 ```
-POST /pijar/coach/:user_id
+POST /pijar/sessions/start/:user_id
 ```
 
-**Deskripsi:**
-Mengirim pesan ke AI Coach dan mendapatkan respon bimbingan. AI akan memberikan saran berdasarkan input pengguna dengan konteks percakapan sebelumnya.
-
-**Kegunaan:**
-- Mendapatkan saran karir
-- Konsultasi pengembangan diri
-- Bimbingan dalam menghadapi tantangan pekerjaan
-- Rekomendasi langkah-langkah pengembangan karir
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
 
 **Request Body:**
 ```json
@@ -88,131 +349,187 @@ Mengirim pesan ke AI Coach dan mendapatkan respon bimbingan. AI akan memberikan 
 }
 ```
 
-**Response:**
+**Response (Success - 201 Created):**
 ```json
 {
-  "ai_response": "Untuk memulai karir di bidang teknologi, Anda bisa memulainya dengan..."
+  "session_id": "unique-session-id",
+  "response": "Untuk memulai karir di bidang teknologi, Anda bisa memulainya dengan..."
 }
 ```
 
-#### Get User's Chat History
+**Error Responses:**
+- 400 Bad Request: Invalid input format
+- 401 Unauthorized: Missing or invalid token
+- 500 Internal Server Error: Failed to start session
+
+#### Continue Session
 ```
-GET /pijar/coach/:user_id
+POST /pijar/sessions/continue/:sessionId/:user_id
 ```
 
-**Deskripsi:**
-Mendapatkan riwayat percakapan pengguna dengan AI Coach.
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
 
-**Kegunaan:**
-- Melihat kembali percakapan sebelumnya
-- Melacak perkembangan konsultasi
-- Menganalisis riwayat bimbingan yang telah diberikan
-
-**Response:**
+**Request Body:**
 ```json
 {
-  "sessions": [
+  "user_input": "Terima kasih atas sarannya. Bagaimana dengan skill yang harus saya kuasai?"
+}
+```
+
+**Response (Success - 200 OK):**
+```json
+{
+  "session_id": "unique-session-id",
+  "response": "Berikut adalah beberapa skill penting yang bisa Anda pelajari..."
+}
+```
+
+#### Get Session History
+```
+GET /pijar/sessions/history/:sessionId/:user_id
+```
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response (Success - 200 OK):**
+```json
+{
+  "session_id": "unique-session-id",
+  "messages": [
     {
-      "id": 1,
-      "user_id": 1,
-      "messages": [
-        {
-          "role": "user",
-          "content": "Apa yang harus saya lakukan?"
-        },
-        {
-          "role": "assistant",
-          "content": "Anda bisa memulai dengan..."
-        }
-      ]
+      "role": "user",
+      "content": "Apa yang harus saya lakukan?"
+    },
+    {
+      "role": "assistant",
+      "content": "Anda bisa memulai dengan..."
     }
   ]
 }
 ```
 
-#### Delete User's Chat History
+#### Delete Session
 ```
-DELETE /pijar/coach/:user_id
+DELETE /pijar/sessions/:sessionId/:user_id
 ```
 
-**Deskripsi:**
-Menghapus semua riwayat percakapan pengguna dengan AI Coach.
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
 
-**Kegunaan:**
-- Menghapus riwayat percakapan lama
-- Memulai percakapan baru yang lebih fokus
-- Membersihkan data percakapan yang tidak diperlukan lagi
-
-**Response:**
+**Response (Success - 200 OK):**
 ```json
 {
-  "message": "Session untuk user ID 1 berhasil dihapus"
+  "message": "Session deleted successfully"
 }
+```
+
+#### Get All User Sessions (Admin Only)
+```
+GET /pijar/sessions/user/:user_id
+```
+
+**Headers:**
+```
+Authorization: Bearer <admin_jwt_token>
+```
+
+**Response (Success - 200 OK):**
+```json
+[
+  {
+    "id": 1,
+    "session_id": "unique-session-id-1",
+    "user_id": 1,
+    "timestamp": "2025-05-13T10:30:00Z"
+  },
+  {
+    "id": 2,
+    "session_id": "unique-session-id-2",
+    "user_id": 1,
+    "timestamp": "2025-05-13T11:45:00Z"
+  }
+]
 ```
 
 ### Journal
 
 Endpoints untuk manajemen jurnal pribadi pengguna.
 
-#### Create Journal
+#### Create Journal Entry
 ```
-POST /pijar/journals/
+POST /pijar/journals
 ```
 
-**Deskripsi:**
-Membuat entri jurnal baru.
-
-**Kegunaan:**
-- Mencatat pengalaman harian
-- Melacak perkembangan pribadi
-- Mencatat pencapaian atau tantangan
-- Menulis refleksi diri
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
 
 **Request Body:**
 ```json
 {
   "user_id": 1,
-  "judul": "Hari Pertama Kerja",
-  "isi": "Hari ini adalah hari pertama saya bekerja...",
-  "perasaan": "senang"
+  "title": "Hari Pertama Kerja",
+  "content": "Hari ini adalah hari pertama saya bekerja...",
+  "mood": "happy"
 }
 ```
 
-**Response:**
+**Response (Success - 201 Created):**
 ```json
 {
   "id": 1,
   "user_id": 1,
-  "judul": "Hari Pertama Kerja",
-  "isi": "Hari ini adalah hari pertama saya bekerja...",
-  "perasaan": "senang",
-  "created_at": "2023-01-01T00:00:00Z"
+  "title": "Hari Pertama Kerja",
+  "content": "Hari ini adalah hari pertama saya bekerja...",
+  "mood": "happy",
+  "created_at": "2025-05-13T00:00:00Z"
 }
 ```
+
+**Error Responses:**
+- 400 Bad Request: Invalid input data
+- 401 Unauthorized: Missing or invalid token
+- 500 Internal Server Error: Failed to create journal entry
 
 #### Get User's Journals
 ```
 GET /pijar/journals/user/:userID
 ```
 
-**Deskripsi:**
-Mendapatkan semua jurnal yang dimiliki oleh pengguna.
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
 
-**Kegunaan:**
-- Melihat riwayat jurnal
-- Melacak perkembangan dari waktu ke waktu
-- Menganalisis pola emosi dan pengalaman
-
-**Response:**
+**Response (Success - 200 OK):**
 ```json
 [
   {
     "id": 1,
     "user_id": 1,
-    "judul": "Hari Pertama Kerja",
-    "isi": "Hari ini adalah hari pertama saya bekerja...",
-    "perasaan": "senang",
-    "created_at": "2023-01-01T00:00:00Z"
+    "title": "Hari Pertama Kerja",
+    "content": "Hari ini adalah hari pertama saya bekerja...",
+    "mood": "happy",
+    "created_at": "2025-05-13T00:00:00Z"
+  },
+  {
+    "id": 2,
+    "user_id": 1,
+    "title": "Mencoba Hal Baru",
+    "content": "Hari ini saya mencoba sesuatu yang baru...",
+    "mood": "excited",
+    "created_at": "2025-05-12T00:00:00Z"
   }
 ]
 ```
@@ -345,29 +662,208 @@ Mendapatkan detail pengguna berdasarkan ID.
 **Response:**
 ```json
 {
+  "message": "User created successfully",
   "data": {
     "id": 1,
     "name": "John Doe",
     "email": "john@example.com",
     "birth_year": 1990,
     "phone": "081234567890",
-    "role": "user"
+    "created_at": "2025-05-13T00:00:00Z",
+    "updated_at": "2025-05-13T00:00:00Z",
+    "role": "USER"
   }
 }
 ```
 
-#### Update User
+#### Get All Users (Admin Only)
 ```
-PUT /pijar/users
+GET /pijar/users
 ```
 
-**Deskripsi:**
-Memperbarui informasi pengguna.
+**Headers:**
+```
+Authorization: Bearer <admin_jwt_token>
+```
 
-**Kegunaan:**
-- Memperbarui profil pengguna
-- Memperbaiki data yang salah
-- Mengubah peran atau status pengguna
+**Response (Success - 200 OK):**
+```json
+{
+  "message": "Users retrieved successfully",
+  "data": [
+    {
+      "id": 1,
+      "name": "John Doe",
+      "email": "john@example.com",
+      "birth_year": 1990,
+      "phone": "081234567890",
+      "created_at": "2025-05-13T00:00:00Z",
+      "updated_at": "2025-05-13T00:00:00Z",
+      "role": "USER"
+    },
+    {
+      "id": 2,
+      "name": "Admin User",
+      "email": "admin@example.com",
+      "birth_year": 1985,
+      "phone": "081234567891",
+      "created_at": "2025-05-12T00:00:00Z",
+      "updated_at": "2025-05-12T00:00:00Z",
+      "role": "ADMIN"
+    }
+  ]
+}
+```
+
+#### Get User by ID (Admin Only)
+```
+GET /pijar/users/:id
+```
+
+**Headers:**
+```
+Authorization: Bearer <admin_jwt_token>
+```
+
+**Response (Success - 200 OK):**
+```json
+{
+  "message": "User retrieved successfully",
+  "data": {
+    "id": 1,
+    "name": "John Doe",
+    "email": "john@example.com",
+    "birth_year": 1990,
+    "phone": "081234567890",
+    "created_at": "2025-05-13T00:00:00Z",
+    "updated_at": "2025-05-13T00:00:00Z",
+    "role": "USER"
+  }
+}
+```
+
+#### Update User (Admin Only)
+```
+PUT /pijar/users/:id
+```
+
+**Headers:**
+```
+Authorization: Bearer <admin_jwt_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "name": "John Updated",
+  "email": "john.updated@example.com",
+  "birth_year": 1991,
+  "phone": "081234567899",
+  "role": "ADMIN"
+}
+```
+
+**Response (Success - 200 OK):**
+```json
+{
+  "message": "User updated successfully",
+  "data": {
+    "id": 1,
+    "name": "John Updated",
+    "email": "john.updated@example.com",
+    "birth_year": 1991,
+    "phone": "081234567899",
+    "created_at": "2025-05-13T00:00:00Z",
+    "updated_at": "2025-05-13T01:00:00Z",
+    "role": "ADMIN"
+  }
+}
+```
+
+#### Delete User (Admin Only)
+```
+DELETE /pijar/users/:id
+```
+
+**Headers:**
+```
+Authorization: Bearer <admin_jwt_token>
+```
+
+**Response (Success - 200 OK):**
+```json
+{
+  "message": "User deleted successfully"
+}
+```
+
+### User Profile
+
+#### Get Own Profile
+```
+GET /pijar/profile
+```
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response (Success - 200 OK):**
+```json
+{
+  "message": "Profile retrieved successfully",
+  "data": {
+    "id": 1,
+    "name": "John Doe",
+    "email": "john@example.com",
+    "birth_year": 1990,
+    "phone": "081234567890",
+    "created_at": "2025-05-13T00:00:00Z",
+    "updated_at": "2025-05-13T00:00:00Z",
+    "role": "USER"
+  }
+}
+```
+
+#### Update Own Profile
+```
+PUT /pijar/profile/:id
+```
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "name": "John Updated",
+  "email": "john.updated@example.com",
+  "birth_year": 1991,
+  "phone": "081234567899"
+}
+```
+
+**Response (Success - 200 OK):**
+```json
+{
+  "message": "Profile updated successfully",
+  "data": {
+    "id": 1,
+    "name": "John Updated",
+    "email": "john.updated@example.com",
+    "birth_year": 1991,
+    "phone": "081234567899",
+    "created_at": "2025-05-13T00:00:00Z",
+    "updated_at": "2025-05-13T01:00:00Z",
+    "role": "USER"
+  }
+}
+```
 
 **Request Body:**
 ```json
@@ -438,6 +934,9 @@ Menghapus akun pengguna dari sistem.
 ### 404 Not Found
 ```json
 {
+  "error": "User not found",
+  "error": "Journal not found",
+  "error": "Session not found",
   "error": "User not found"
 }
 ```
