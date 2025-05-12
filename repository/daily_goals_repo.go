@@ -217,7 +217,7 @@ func (r *dailyGoalsRepository) UpdateGoal(
 		// use length articleToRead as total article
 		totalArticles := len(articleToRead)
 
-		// count new status and update to db
+		// Hitung status baru dan update ke DB
 		newStatus := (completedCount == totalArticles && totalArticles > 0)
 		_, err = tx.ExecContext(
 			ctx,
