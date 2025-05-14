@@ -1,1 +1,20 @@
+# Environment files
 .env
+
+# Docker
+Dockerfile
+docker-compose.yml
+
+# Database
+schema.sql
+
+# IDE specific files
+.vscode/
+
+# OS generated files
+.DS_Store
+
+#API Doc
+API_DOCUMENTATION.md
+
+

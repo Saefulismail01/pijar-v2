@@ -163,8 +163,8 @@ func (m *midtransService) CheckTransactionStatus(orderID string) (string, error)
 	// Parse response
 	var statusResp struct {
 		TransactionStatus string `json:"transaction_status"`
-		StatusCode       string `json:"status_code"`
-		StatusMessage    string `json:"status_message"`
+		StatusCode        string `json:"status_code"`
+		StatusMessage     string `json:"status_message"`
 	}
 
 	err = json.Unmarshal(resp.Body(), &statusResp)

@@ -17,7 +17,6 @@ type ArticleControllerImpl struct {
 	aM             middleware.AuthMiddleware
 }
 
-
 func NewArticleController(au usecase.ArticleUsecase, rg *gin.RouterGroup, aM middleware.AuthMiddleware) *ArticleControllerImpl {
 	return &ArticleControllerImpl{
 		articleUsecase: au,
