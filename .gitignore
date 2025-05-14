@@ -14,7 +14,7 @@ schema.sql
 # OS generated files
 .DS_Store
 
-# Firebase
-config/pijar-7af83-firebase-adminsdk-fbsvc-de539d6e6b.json
+#API Doc
+API_DOCUMENTATION.md
 
 
