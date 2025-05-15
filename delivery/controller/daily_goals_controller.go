@@ -38,21 +38,27 @@ func (c *dailyGoalsController) Route() {
 	userRoutes := goalsGroup.Group("")
 	userRoutes.Use(c.aM.RequireToken("USER", "ADMIN"))
 	{
-		userRoutes.POST("/:user_id", c.CreateGoal)
-		userRoutes.PUT("/:user_id/:id", c.UpdateGoal)
+		userRoutes.POST("/", c.CreateGoal)
+        userRoutes.PUT("/:id", c.UpdateGoal)
 		userRoutes.PUT("/complete-article", c.CompleteGoalProgress)
-		userRoutes.DELETE("/:user_id/:id", c.DeleteGoal)
-        userRoutes.GET("/:user_id", c.GetUserGoals)
+		userRoutes.DELETE("/:id", c.DeleteGoal)
+		userRoutes.GET("/", c.GetUserGoals)
 	}
 }
 
 func (c *dailyGoalsController) CreateGoal(ctx *gin.Context) {
-	// get user ID from URL (param)
-	userID, err := strconv.Atoi(ctx.Param("user_id"))
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Invalid user ID",
-			Error:   err.Error(),
+	// get user ID from jwt body
+	val, exists := ctx.Get("userID")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, dto.Response{
+			Message: "Authentication required",
+		})
+		return
+	}
+	userID, ok := val.(int)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "Invalid user identity in context",
 		})
 		return
 	}
@@ -99,6 +105,23 @@ func (c *dailyGoalsController) CreateGoal(ctx *gin.Context) {
 }
 
 func (c *dailyGoalsController) CompleteGoalProgress(ctx *gin.Context) {
+	// extract userID from JWT (context)
+	val, exists := ctx.Get("userID")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, dto.Response{
+			Message: "Authentication required",
+		})
+		return
+	}
+
+	userID, ok := val.(int)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "Invalid user identity in context",
+		})
+		return
+	}
+
 	// Parse request body
 	var req dto.CompleteArticleRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -110,14 +133,6 @@ func (c *dailyGoalsController) CompleteGoalProgress(ctx *gin.Context) {
 	}
 
 	// Validate IDs
-	if req.UserID <= 0 {
-
-		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Invalid user ID",
-		})
-		return
-	}
-
 	if req.GoalID <= 0 {
 		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Message: "Invalid goal ID",
@@ -133,7 +148,12 @@ func (c *dailyGoalsController) CompleteGoalProgress(ctx *gin.Context) {
 	}
 
 	// Call usecase to complete article progress
-	result, err := c.uc.CompleteArticleProgress(context.Background(), req.GoalID, req.ArticleID, req.UserID)
+	result, err := c.uc.CompleteArticleProgress(
+		context.Background(),
+		req.GoalID,
+		req.ArticleID,
+		userID,
+	)
 	if err != nil {
 		// Check if error is due to article not found in goal
 		if err.Error() == "artikel tidak termasuk dalam goal ini" {
@@ -188,10 +208,19 @@ func (c *dailyGoalsController) CompleteGoalProgress(ctx *gin.Context) {
 }
 
 func (c *dailyGoalsController) GetUserGoals(ctx *gin.Context) {
-	userID, err := strconv.Atoi(ctx.Param("user_id"))
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Invalid user ID",
+	// extract userID from JWT (context)
+	val, exists := ctx.Get("userID")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, dto.Response{
+			Message: "Authentication required",
+		})
+		return
+	}
+
+	userID, ok := val.(int)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "Invalid user identity in context",
 		})
 		return
 	}
@@ -211,10 +240,20 @@ func (c *dailyGoalsController) GetUserGoals(ctx *gin.Context) {
 }
 
 func (c *dailyGoalsController) UpdateGoal(ctx *gin.Context) {
-	userID, err := strconv.Atoi(ctx.Param("user_id"))
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Invalid user ID",
+
+	// get user ID from jwt body
+	val, exists := ctx.Get("userID")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, dto.Response{
+			Message: "Authentication required",
+		})
+		return
+	}
+
+	userID, ok := val.(int)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "Invalid user identity in context",
 		})
 		return
 	}
@@ -299,11 +338,19 @@ func (c *dailyGoalsController) UpdateGoal(ctx *gin.Context) {
 }
 
 func (c *dailyGoalsController) DeleteGoal(ctx *gin.Context) {
-	// Get user_id from URL
-	userID, err := strconv.Atoi(ctx.Param("user_id"))
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Invalid user ID",
+	// extract userID from JWT (context)
+	val, exists := ctx.Get("userID")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, dto.Response{
+			Message: "Authentication required",
+		})
+		return
+	}
+
+	userID, ok := val.(int)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "Invalid user identity in context",
 		})
 		return
 	}
