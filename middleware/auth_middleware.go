@@ -4,11 +4,11 @@ import (
 	"log"
 	"net/http"
 	"pijar/utils/service"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 )
-
 
 type AuthMiddlewareInterface interface {
 	RequireToken(allowedRoles ...string) gin.HandlerFunc
@@ -53,10 +53,16 @@ func (a *AuthMiddleware) RequireToken(allowedRoles ...string) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden: role not allowed"})
 			return
 		}
-	
 
+		intUserID, err := strconv.Atoi(claims.UserId)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "Invalid user ID in token",
+			})
+			return
+		}
 
-		c.Set("user_id", claims.UserId)
+		c.Set("userID", intUserID) // note lowercase key and int value
 		c.Set("role", claims.Role)
 		c.Next()
 	}

@@ -120,7 +120,7 @@ func (r *dailyGoalsRepository) UpdateGoal(
 	).Scan(&existingID)
 	if err != nil {
 		tx.Rollback()
-		return model.UserGoal{}, fmt.Errorf("goal tidak ditemukan: %v", err)
+		return model.UserGoal{}, fmt.Errorf("goal not found: %v", err)
 	}
 
 	updateGoalQuery := `
