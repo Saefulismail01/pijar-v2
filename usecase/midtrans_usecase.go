@@ -7,6 +7,7 @@ import (
 	"pijar/repository"
 	"pijar/utils/service"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -154,7 +155,8 @@ func (p *paymentUsecase) ProcessCallback(callback model.MidtransCallbackRequest)
 	case "deny", "cancel", "expire", "failure":
 		status = "failed"
 	default:
-		status = "unknown"
+		// For any other status, treat as pending to allow rollback
+		status = "pending"
 	}
 
 	// Update transaction status in database
@@ -195,7 +197,8 @@ func (p *paymentUsecase) ForceCheckAndUpdateStatus(id int) (model.Transaction, e
 	case "deny", "cancel", "expire", "failure":
 		newStatus = "failed"
 	default:
-		newStatus = "unknown"
+		// For any other status, treat as pending to allow rollback
+		newStatus = "pending"
 	}
 	if newStatus != transaction.Status {
 		log.Printf("Updating transaction %d status from %s to %s", id, transaction.Status, newStatus)
@@ -231,18 +234,24 @@ func (p *paymentUsecase) RollbackPayment(id int) (model.Transaction, error) {
 		return model.Transaction{}, fmt.Errorf("transaction not found: %w", err)
 	}
 
-	// Hanya boleh rollback transaksi yang masih pending
-	if transaction.Status != "pending" {
-		return transaction, fmt.Errorf("cannot rollback non-pending transaction with status: %s", transaction.Status)
+	// Hanya boleh rollback transaksi yang belum selesai
+	if transaction.Status == "success" || transaction.Status == "cancelled" {
+		return transaction, fmt.Errorf("cannot rollback transaction with status: %s", transaction.Status)
 	}
 
-	// Panggil Midtrans API untuk cancel transaksi
+	// Coba cancel transaksi di Midtrans
 	err = p.midtransService.CancelTransaction(transaction.OrderID)
 	if err != nil {
-		return transaction, fmt.Errorf("failed to cancel transaction: %w", err)
+		// Jika transaksi tidak ditemukan di Midtrans (404), lanjutkan dengan update status
+		if strings.Contains(err.Error(), "404") || strings.Contains(err.Error(), "not found") || 
+		   strings.Contains(err.Error(), "Transaction doesn't exist") {
+			log.Printf("Transaction %s not found in Midtrans, updating local status to cancelled", transaction.OrderID)
+		} else {
+			return transaction, fmt.Errorf("failed to cancel transaction: %w", err)
+		}
 	}
 
-	// Update status transaksi
+	// Update status transaksi di database
 	transaction.Status = "cancelled"
 	transaction.UpdatedAt = time.Now()
 
