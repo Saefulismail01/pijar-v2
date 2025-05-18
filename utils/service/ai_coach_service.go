@@ -20,7 +20,7 @@ type DeepSeekClient struct {
 
 // GetAIResponseWithContext mengirim permintaan ke DeepSeek API dengan konteks percakapan yang ada
 func (d *DeepSeekClient) GetAIResponseWithContext(messages []model.Message) (string, error) {
-	url := "https://api.deepseek.com/v1/chat/completions"
+	url := "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
 	// Konversi dari model.Message ke format yang diharapkan API
 	apiMessages := make([]map[string]string, 0, len(messages))

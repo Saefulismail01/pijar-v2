@@ -30,10 +30,10 @@ func (h *SessionHandler) Route() {
 	sessionGroup := h.rg.Group("/sessions")
 	userRoutes := sessionGroup.Use(h.aM.RequireToken("USER", "ADMIN"))
 	{
-		userRoutes.POST("/start/:user_id", h.HandleStartSession)
-		userRoutes.POST("/continue/:sessionId/:user_id", h.HandleContinueSession)
-		userRoutes.GET("/history/:sessionId/:user_id", h.HandleGetSessionHistory)
-		userRoutes.DELETE("/:sessionId/:user_id", h.HandleDeleteSession)
+		userRoutes.POST("/start", h.HandleStartSession)
+		userRoutes.POST("/continue/:sessionId", h.HandleContinueSession)
+		userRoutes.GET("/history/:sessionId", h.HandleGetSessionHistory)
+		userRoutes.DELETE("/:sessionId", h.HandleDeleteSession)
 	}
 
 	adminRoutes := sessionGroup.Use(h.aM.RequireToken("ADMIN"))
@@ -53,11 +53,18 @@ func (h *SessionHandler) HandleStartSession(c *gin.Context) {
 		return
 	}
 
-	userID, err := strconv.Atoi(c.Param("user_id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Bad Request",
-			Error:   "invalid user id",
+	// get user ID from jwt body
+	val, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, dto.Response{
+			Message: "Authentication required",
+		})
+		return
+	}
+	userID, ok := val.(int)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "Invalid user identity in context",
 		})
 		return
 	}
@@ -100,11 +107,18 @@ func (h *SessionHandler) HandleContinueSession(c *gin.Context) {
 		return
 	}
 
-	userID, err := strconv.Atoi(c.Param("user_id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Bad Request",
-			Error:   "invalid user id",
+	// get user ID from jwt body
+	val, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, dto.Response{
+			Message: "Authentication required",
+		})
+		return
+	}
+	userID, ok := val.(int)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "Invalid user identity in context",
 		})
 		return
 	}
@@ -138,19 +152,26 @@ func (h *SessionHandler) HandleGetSessionHistory(c *gin.Context) {
 		return
 	}
 
-	userID, err := strconv.Atoi(c.Param("user_id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Bad Request",
-			Error:   "invalid user id",
+	// get user ID from jwt body
+	val, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, dto.Response{
+			Message: "Authentication required",
+		})
+		return
+	}
+	userID, ok := val.(int)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "Invalid user identity in context",
 		})
 		return
 	}
 
 	// Default limit 20 messages
-	limit := 20
+	limits := 20
 	if limitStr := c.Query("limit"); limitStr != "" {
-		limit, err = strconv.Atoi(limitStr)
+		limit, err := strconv.Atoi(limitStr)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 				Message: "Bad Request",
@@ -158,9 +179,10 @@ func (h *SessionHandler) HandleGetSessionHistory(c *gin.Context) {
 			})
 			return
 		}
+		limits = limit
 	}
 
-	history, err := h.usecase.GetSessionHistory(c, userID, sessionID, limit)
+	history, err := h.usecase.GetSessionHistory(c, userID, sessionID, limits)
 	if err != nil {
 		if err.Error() == "sesi tidak ditemukan atau tidak dapat diakses" {
 			c.JSON(http.StatusForbidden, dto.ErrorResponse{
@@ -187,11 +209,18 @@ func (h *SessionHandler) HandleGetSessionHistory(c *gin.Context) {
 
 // HandleGetUserSessions retrieves user session list
 func (h *SessionHandler) HandleGetUserSessions(c *gin.Context) {
-	userID, err := strconv.Atoi(c.Param("user_id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Bad Request",
-			Error:   "invalid user id",
+	// get user ID from jwt body
+	val, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, dto.Response{
+			Message: "Authentication required",
+		})
+		return
+	}
+	userID, ok := val.(int)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "Invalid user identity in context",
 		})
 		return
 	}
@@ -212,11 +241,18 @@ func (h *SessionHandler) HandleGetUserSessions(c *gin.Context) {
 }
 
 func (h *SessionHandler) HandleDeleteSession(c *gin.Context) {
-	userID, err := strconv.Atoi(c.Param("user_id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Bad Request",
-			Error:   "invalid user id",
+	// get user ID from jwt body
+	val, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, dto.Response{
+			Message: "Authentication required",
+		})
+		return
+	}
+	userID, ok := val.(int)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "Invalid user identity in context",
 		})
 		return
 	}
@@ -230,7 +266,7 @@ func (h *SessionHandler) HandleDeleteSession(c *gin.Context) {
 		return
 	}
 
-	err = h.usecase.DeleteSession(c, userID, sessionID)
+	err := h.usecase.DeleteSession(c, userID, sessionID)
 	if err != nil {
 		if err.Error() == "session not found or not owned by user" {
 			c.JSON(http.StatusNotFound, dto.ErrorResponse{
