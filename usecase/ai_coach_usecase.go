@@ -18,7 +18,7 @@ type SessionUsecase interface {
 
 type sessionUsecase struct {
 	repo repository.CoachSessionRepository
-	ai   *service.DeepSeekClient
+	ai   *service.GeminiClient
 }
 
 func (u *sessionUsecase) StartSession(c context.Context, userID int, userInput string) (string, string, error) {
@@ -117,7 +117,7 @@ func (u *sessionUsecase) DeleteSession(c context.Context, userID int, sessionID 
 	return u.repo.DeleteSession(c, userID, sessionID)
 }
 
-func NewSessionUsecase(repo repository.CoachSessionRepository, aiClient *service.DeepSeekClient) SessionUsecase {
+func NewSessionUsecase(repo repository.CoachSessionRepository, aiClient *service.GeminiClient) SessionUsecase {
 	return &sessionUsecase{
 		repo: repo,
 		ai:   aiClient,

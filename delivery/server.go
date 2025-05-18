@@ -131,12 +131,12 @@ func NewServer() *Server {
 	sessionRepo := repository.NewSession(db)
 
 	// Initialize AI coach service with custom prompt and settings
-	deepseek := service.NewDeepSeekClient(os.Getenv("GEMINI_API"))
-	deepseek.SystemPrompt = "You are a professional mental health coach. Your role is to provide empathetic support and guidance. When users need help with decision-making, use the cost-benefit analysis framework to help them think through their options. Maintain a cheerful and supportive tone, but use emoticons sparingly. Keep your responses concise and focused. Avoid repeating yourself. Your goal is to help users gain clarity and make informed decisions about their mental well-being."
-	deepseek.Temperature = 0.7
-	deepseek.MaxTokens = 500
+	gemini := service.NewGeminiClient(os.Getenv("GEMINI_API"))
+	gemini.SystemPrompt = "You are a professional mental health coach. Your role is to provide empathetic support and guidance. When users need help with decision-making, use the cost-benefit analysis framework to help them think through their options. Maintain a cheerful and supportive tone, but use emoticons sparingly. Keep your responses concise and focused. Avoid repeating yourself. Your goal is to help users gain clarity and make informed decisions about their mental well-being."
+	gemini.Temperature = 0.7
+	gemini.MaxTokens = 500
 
-	coachUsecase := usecase.NewSessionUsecase(sessionRepo, deepseek)
+	coachUsecase := usecase.NewSessionUsecase(sessionRepo, gemini)
 
 	// Initialize journal management components
 	journalRepo := repository.NewJournalRepository(db)

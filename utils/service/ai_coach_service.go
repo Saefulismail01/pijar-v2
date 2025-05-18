@@ -6,101 +6,148 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-
 	"pijar/model"
 )
 
-type DeepSeekClient struct {
-	APIKey string
+type GeminiClient struct {
+	APIKey      string
 	SystemPrompt string
-	UserPrompt string
+	UserPrompt  string
 	Temperature float64
-	MaxTokens int
+	MaxTokens   int
 }
 
-// GetAIResponseWithContext mengirim permintaan ke DeepSeek API dengan konteks percakapan yang ada
-func (d *DeepSeekClient) GetAIResponseWithContext(messages []model.Message) (string, error) {
-	url := "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
-
-	// Konversi dari model.Message ke format yang diharapkan API
-	apiMessages := make([]map[string]string, 0, len(messages))
-	for _, msg := range messages {
-		apiMessages = append(apiMessages, map[string]string{
-			"role":    msg.Role,
-			"content": msg.Content,
-		})
+// GetAIResponseWithContext mengirim permintaan ke Gemini API dengan konteks percakapan yang ada
+func (g *GeminiClient) GetAIResponseWithContext(messages []model.Message) (string, error) {
+	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=%s", g.APIKey)
+	
+	// Konversi dari model.Message ke format Gemini API
+	contents := make([]map[string]interface{}, 0)
+	
+	// Gabungkan system prompt dengan user input pertama jika ada
+	var firstUserMessage string
+	if g.SystemPrompt != "" && len(messages) > 0 {
+		firstUserMessage = g.SystemPrompt + "\n\n" + messages[0].Content
+		messages = messages[1:] // Skip first message karena sudah digabung
 	}
-
-	// Jika ada system prompt, tambahkan di awal
-	if d.SystemPrompt != "" {
-		systemMsg := map[string]string{
-			"role":    "system",
-			"content": d.SystemPrompt,
+	
+	// Tambahkan user input pertama (dengan system prompt jika ada)
+	if firstUserMessage != "" {
+		content := map[string]interface{}{
+			"role": "user",
+			"parts": []map[string]string{
+				{"text": firstUserMessage},
+			},
 		}
-		apiMessages = append([]map[string]string{systemMsg}, apiMessages...)
+		contents = append(contents, content)
 	}
-
+	
+	// Tambahkan message lainnya dengan role mapping
+	for _, msg := range messages {
+		role := "user"
+		if msg.Role == "assistant" {
+			role = "model"
+		}
+		
+		content := map[string]interface{}{
+			"role": role,
+			"parts": []map[string]string{
+				{"text": msg.Content},
+			},
+		}
+		contents = append(contents, content)
+	}
+	
+	// Jika tidak ada konten sama sekali, buat dari system prompt saja
+	if len(contents) == 0 {
+		prompt := g.SystemPrompt
+		if prompt == "" {
+			prompt = "Hello"
+		}
+		content := map[string]interface{}{
+			"role": "user",
+			"parts": []map[string]string{
+				{"text": prompt},
+			},
+		}
+		contents = append(contents, content)
+	}
+	
 	payload := map[string]interface{}{
-		"model":       "deepseek-chat",
-		"messages":    apiMessages,
-		"temperature": d.Temperature,
+		"contents": contents,
 	}
-
-	if d.MaxTokens > 0 {
-		payload["max_tokens"] = d.MaxTokens
+	
+	// Gemini API menggunakan generationConfig untuk parameter seperti temperature
+	generationConfig := map[string]interface{}{}
+	if g.Temperature > 0 {
+		generationConfig["temperature"] = g.Temperature
 	}
-
+	if g.MaxTokens > 0 {
+		generationConfig["maxOutputTokens"] = g.MaxTokens
+	}
+	
+	if len(generationConfig) > 0 {
+		payload["generationConfig"] = generationConfig
+	}
+	
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return "", fmt.Errorf("gagal mengencode payload: %w", err)
 	}
-
+	
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
 	if err != nil {
 		return "", fmt.Errorf("gagal membuat request: %w", err)
 	}
+	
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+d.APIKey)
-
+	
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("gagal mengirim request: %w", err)
 	}
 	defer resp.Body.Close()
-
+	
 	if resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return "", fmt.Errorf("error dari API: %s", string(body))
+		return "", fmt.Errorf("error dari API (status %d): %s", resp.StatusCode, string(body))
 	}
-
+	
+	// Struktur respons Gemini API
 	var result struct {
-		Choices []struct {
-			Message struct {
-				Content string `json:"content"`
-			} `json:"message"`
-		} `json:"choices"`
+		Candidates []struct {
+			Content struct {
+				Parts []struct {
+					Text string `json:"text"`
+				} `json:"parts"`
+			} `json:"content"`
+		} `json:"candidates"`
 	}
-
+	
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return "", fmt.Errorf("gagal mendecode respons: %w", err)
 	}
-
-	if len(result.Choices) == 0 {
+	
+	if len(result.Candidates) == 0 {
 		return "", fmt.Errorf("tidak ada respons yang diterima")
 	}
-
-	return result.Choices[0].Message.Content, nil
+	
+	if len(result.Candidates[0].Content.Parts) == 0 {
+		return "", fmt.Errorf("tidak ada konten dalam respons")
+	}
+	
+	return result.Candidates[0].Content.Parts[0].Text, nil
 }
 
 // GetAIResponse adalah wrapper untuk kompatibilitas mundur
-func (d *DeepSeekClient) GetAIResponse(userInput string) (string, error) {
+func (g *GeminiClient) GetAIResponse(userInput string) (string, error) {
 	messages := []model.Message{{
 		Role:    "user",
 		Content: userInput,
 	}}
-	return d.GetAIResponseWithContext(messages)
+	return g.GetAIResponseWithContext(messages)
 }
 
-func NewDeepSeekClient(apiKey string) *DeepSeekClient {
-	return &DeepSeekClient{APIKey: apiKey}
+func NewGeminiClient(apiKey string) *GeminiClient {
+	return &GeminiClient{APIKey: apiKey}
 }
