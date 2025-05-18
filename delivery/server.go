@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -24,6 +25,7 @@ import (
 type Server struct {
 	coachUC        usecase.SessionUsecase
 	journalUC      usecase.JournalUsecase
+	journalAIUC    usecase.JournalAIUsecase
 	topicUC        usecase.TopicUsecase
 	articleUC      usecase.ArticleUsecase
 	dailyGoalUC    usecase.DailyGoalUseCase
@@ -48,6 +50,7 @@ func (s *Server) initRoute() {
 	controller.NewMidtransCallbackHandler(rg, s.paymentUsecase).Route()
 	controller.NewSessionHandler(s.coachUC, rg, *s.authMiddleware).Route()
 	controller.NewJournalController(s.journalUC, rg, *s.authMiddleware).Route()
+	controller.NewJournalAIController(s.journalAIUC, rg, *s.authMiddleware).Route()
 	controller.NewTopicController(s.topicUC, rg, *s.authMiddleware).Route()
 	controller.NewArticleController(s.articleUC, rg, *s.authMiddleware).Route()
 	controller.NewGoalController(s.dailyGoalUC, rg, *s.authMiddleware).Route()
@@ -130,17 +133,33 @@ func NewServer() *Server {
 	// Initialize session management components
 	sessionRepo := repository.NewSession(db)
 
-	// Initialize AI coach service with custom prompt and settings
-	gemini := service.NewGeminiClient(os.Getenv("GEMINI_API"))
-	gemini.SystemPrompt = "You are a professional mental health coach. Your role is to provide empathetic support and guidance. When users need help with decision-making, use the cost-benefit analysis framework to help them think through their options. Maintain a cheerful and supportive tone, but use emoticons sparingly. Keep your responses concise and focused. Avoid repeating yourself. Your goal is to help users gain clarity and make informed decisions about their mental well-being."
-	gemini.Temperature = 0.7
-	gemini.MaxTokens = 500
+	// Initialize Gemini AI client with API key from environment
+	geminiAPIKey := os.Getenv("GEMINI_API")
+	if geminiAPIKey == "" {
+		log.Fatal("GEMINI_API environment variable is not set")
+	}
 
-	coachUsecase := usecase.NewSessionUsecase(sessionRepo, gemini)
+	// Create a single Gemini client instance
+	geminiClient := service.NewGeminiClient(geminiAPIKey)
+
+	// Configure AI coach service with custom prompt and settings
+	geminiClient.SystemPrompt = "You are a professional mental health coach. Your role is to provide empathetic support and guidance. When users need help with decision-making, use the cost-benefit analysis framework to help them think through their options. Maintain a cheerful and supportive tone, but use emoticons sparingly. Keep your responses concise and focused. Avoid repeating yourself. Your goal is to help users gain clarity and make informed decisions about their mental well-being."
+	geminiClient.Temperature = 0.7
+	geminiClient.MaxTokens = 500
+
+	// Initialize session management
+	coachUsecase := usecase.NewSessionUsecase(sessionRepo, geminiClient)
 
 	// Initialize journal management components
 	journalRepo := repository.NewJournalRepository(db)
 	journalUsecase := usecase.NewJournalUsecase(journalRepo)
+
+	// Initialize journal AI components
+	journalAIRepo := repository.NewJournalAnalysisRepository(db)
+	
+	// Create journal AI service
+	journalAIService := service.NewJournalAnalysisService(geminiClient, journalAIRepo)
+	journalAIUsecase := usecase.NewJournalAIUsecase(*journalAIRepo, journalRepo, journalAIService)
 
 	// Initialize topic management components
 	topicRepo := repository.NewTopicRepository(db)
@@ -160,6 +179,7 @@ func NewServer() *Server {
 	return &Server{
 		coachUC:        coachUsecase,
 		journalUC:      journalUsecase,
+		journalAIUC:    journalAIUsecase,
 		topicUC:        topicUsecase,
 		articleUC:      articleUsecase,
 		dailyGoalUC:    dailyGoalUC,
