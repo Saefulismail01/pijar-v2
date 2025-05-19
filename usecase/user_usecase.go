@@ -15,6 +15,8 @@ type UserUsecase interface {
 	GetUserByEmail(email string) (model.Users, error)
 	UpdateUserUsecase(id int, user model.Users) (model.Users, error)
 	DeleteUserUsecase(id int) error
+	GenerateOTP(email string) (string, error)
+	VerifyOTP(email string, otp string) (model.Users, error)
 }
 
 type userUsecase struct {
@@ -33,8 +35,8 @@ func (u *userUsecase) CreateUserUsecase(user model.Users) (model.Users, error) {
 		return model.Users{}, errors.New("invalid email format")
 	}
 
-	if len(user.PasswordHash) < 8 {
-		return model.Users{}, errors.New("password must be at least 8 characters")
+	if err := service.IsValidPassword(user.PasswordHash); err != nil {
+		return model.Users{}, err
 	}
 
 	exists, err := u.UserRepo.IsEmailExists(user.Email)

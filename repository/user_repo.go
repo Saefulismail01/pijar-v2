@@ -27,6 +27,10 @@ type UserRepoInterface interface {
 	UpdateUser(user model.Users) (model.Users, error)
 	DeleteUser(id int) error
 	GetUserByEmail(email string) (model.Users, error)
+	SaveOTP(otp *model.OTP) error
+	GetOTPByCode(code string) (*model.OTP, error)
+	DeleteOTP(code string) error
+	DeleteExpiredOTPs() error
 }
 
 // Ensure *UserRepo implements UserRepoInterface
