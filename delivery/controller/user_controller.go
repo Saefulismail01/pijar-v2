@@ -48,7 +48,7 @@ func (uc *UserController) Route() {
 	userProfile := uc.rg.Group("/profile")
 	userProfile.Use(uc.authMiddleware.RequireToken("USER", "ADMIN")) // Both users and admins can access
 	userProfile.GET("/", uc.GetOwnProfileController)
-	userProfile.PUT("/:id", uc.UpdateOwnProfileController)
+	userProfile.PUT("/", uc.UpdateOwnProfileController)
 }
 
 func (uc *UserController) CreateUserController(c *gin.Context) {
@@ -213,18 +213,8 @@ func (uc *UserController) GetUserByEmail(c *gin.Context) {
 }
 
 func (uc *UserController) GetOwnProfileController(c *gin.Context) {
-	// Get user ID from JWT token
-	token := c.GetHeader("Authorization")
-	if token == "" {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-			Message: "Unauthorized",
-			Error:   "No token provided",
-		})
-		return
-	}
-
 	// Get user ID from the JWT token
-	userIDStr, exists := c.Get("user_id")
+	userID, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
 			Message: "Unauthorized",
@@ -233,17 +223,8 @@ func (uc *UserController) GetOwnProfileController(c *gin.Context) {
 		return
 	}
 
-	userID, err := strconv.Atoi(userIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Message: "Invalid user ID",
-			Error:   "Invalid user ID format",
-		})
-		return
-	}
-
-	// Get user profile
-	user, err := uc.UserUsecase.GetUserByIDUsecase(int(userID))
+	// Get user profile using the userID from context
+	user, err := uc.UserUsecase.GetUserByIDUsecase(userID.(int))
 	if err != nil {
 		c.JSON(http.StatusNotFound, dto.ErrorResponse{
 			Message: "User not found",
@@ -252,14 +233,17 @@ func (uc *UserController) GetOwnProfileController(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": user})
+	c.JSON(http.StatusOK, dto.Response{
+		Message: "User retrieved successfully",
+		Data:    user,
+	})
 }
 
 // UpdateOwnProfileController allows users to update their own profile
 func (uc *UserController) UpdateOwnProfileController(c *gin.Context) {
 	// Get user ID from the JWT token
-	userIDStr := c.Param("id")
-	if userIDStr == "" {
+	userID, exists := c.Get("userID")
+	if !exists {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
 			Message: "Unauthorized",
 			Error:   "User ID not found in token",
@@ -267,21 +251,14 @@ func (uc *UserController) UpdateOwnProfileController(c *gin.Context) {
 		return
 	}
 
-	userID, err := strconv.Atoi(userIDStr)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Message: "Invalid user ID format",
-			Error:   "invalid user ID format",
-		})
-		return
-	}
+	userIDInt := userID.(int)
 
-	// Get existing user to preserve password if not updating it
-	existingUser, err := uc.UserUsecase.GetUserByIDUsecase(userID)
+	// Verify user exists before updating
+	existingUser, err := uc.UserUsecase.GetUserByIDUsecase(userIDInt)
 	if err != nil {
 		c.JSON(http.StatusNotFound, dto.ErrorResponse{
 			Message: "User not found",
-			Error:   "user not found",
+			Error:   "User not found",
 		})
 		return
 	}
@@ -304,12 +281,14 @@ func (uc *UserController) UpdateOwnProfileController(c *gin.Context) {
 	}
 
 	// Prepare user object for update
-	user := existingUser
-	user.Name = updateRequest.Name
-	user.Email = updateRequest.Email
-	user.BirthYear = updateRequest.BirthYear
-	user.Phone = updateRequest.Phone
-	// Keep the original role - users can't change their own role
+	user := model.Users{
+		ID:        userIDInt,
+		Name:      updateRequest.Name,
+		Email:     updateRequest.Email,
+		BirthYear: updateRequest.BirthYear,
+		Phone:     updateRequest.Phone,
+		Role:      existingUser.Role, // Preserve the existing role
+	}
 
 	// Only update password if provided
 	if updateRequest.Password != "" {
@@ -325,11 +304,23 @@ func (uc *UserController) UpdateOwnProfileController(c *gin.Context) {
 	}
 
 	// Call the usecase to update the user
-	updatedUser, err := uc.UserUsecase.UpdateUserUsecase(userID, user)
+	updatedUser, err := uc.UserUsecase.UpdateUserUsecase(userIDInt, user)
 	if err != nil {
+		// Log the error for debugging
+		log.Printf("Error updating user: %v", err)
+		
+		// Check if it's a specific error type
+		if err.Error() == "user not found" {
+			c.JSON(http.StatusNotFound, dto.ErrorResponse{
+				Message: "User not found",
+				Error:   "User not found",
+			})
+			return
+		}
+
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 			Message: "Failed to update user",
-			Error:   "failed to update user",
+			Error:   err.Error(), // Return the actual error message
 		})
 		return
 	}

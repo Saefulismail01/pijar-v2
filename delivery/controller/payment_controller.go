@@ -170,8 +170,8 @@ func (p *paymentController) GetPaymentStatus(c *gin.Context) {
 		return
 	}
 
-	// Convert user ID to string
-	userIDStr, ok := userID.(string)
+	// Convert user ID to int
+	userIDInt, ok := userID.(int)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 			Message: "Internal Server Error",
@@ -189,21 +189,11 @@ func (p *paymentController) GetPaymentStatus(c *gin.Context) {
 		return
 	}
 
-	// Convert user ID string to int for comparison
-	userIDInt, err := strconv.Atoi(userIDStr)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Message: "Internal Server Error",
-			Error:   "Failed to convert user ID to integer",
-		})
-		return
-	}
-
-	// Check if user ID from token matches transaction user ID
+	// Check if user is accessing their own transaction or if they're an admin
 	if userIDInt != transaction.UserID && roleStr != "ADMIN" {
 		c.JSON(http.StatusForbidden, dto.ErrorResponse{
 			Message: "Forbidden",
-			Error:   "You can only access your own transactions",
+			Error:   "Cannot access other user's transactions",
 		})
 		return
 	}

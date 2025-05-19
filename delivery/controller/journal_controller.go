@@ -36,7 +36,7 @@ func (c *JournalController) Route() {
 		userRoutes.POST("/", c.CreateJournal)
 		userRoutes.GET("/user", c.GetJournalsByUserID)
 		userRoutes.PUT("/:journalID", c.UpdateJournal)
-		userRoutes.DELETE("/:userID/:journalID", c.DeleteJournal)
+		userRoutes.DELETE("/:journalID", c.DeleteJournal)
 		userRoutes.GET("/export", c.ExportJournalsToPDF)
 	}
 
@@ -49,6 +49,22 @@ func (c *JournalController) Route() {
 }
 
 func (c *JournalController) CreateJournal(ctx *gin.Context) {
+	// get user ID from jwt body
+	val, exists := ctx.Get("userID")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, dto.Response{
+			Message: "Authentication required",
+		})
+		return
+	}
+	userID, ok := val.(int)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "Invalid user identity in context",
+		})
+		return
+	}
+
 	var journal model.Journal
 	if err := ctx.ShouldBindJSON(&journal); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -56,13 +72,7 @@ func (c *JournalController) CreateJournal(ctx *gin.Context) {
 	}
 
 	// Pastikan UserID ada dan valid
-	if journal.UserID <= 0 {
-		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "UserID is required",
-			Error:   "UserID cannot be empty",
-		})
-		return
-	}
+	journal.UserID = userID
 
 	// Pastikan Judul, Isi, dan Perasaan ada
 	if journal.Judul == "" || journal.Isi == "" || journal.Perasaan == "" {
@@ -161,28 +171,68 @@ func (c *JournalController) UpdateJournal(ctx *gin.Context) {
 		return
 	}
 
-	// Get existing journal to get the correct user_id
+	// Get user ID from JWT token
+	userID, exists := ctx.Get("userID")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Message: "Authentication required",
+			Error:   "Invalid token",
+		})
+		return
+	}
+	userIDInt, ok := userID.(int)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Invalid user identity",
+			Error:   "Failed to parse user ID from token",
+		})
+		return
+	}
+
+	// Get existing journal to check ownership
 	existingJournal, err := c.usecase.FindByID(ctx, journalID)
 	if err != nil {
+		if err == dbsql.ErrNoRows {
+			ctx.JSON(http.StatusNotFound, dto.ErrorResponse{
+				Message: "Journal not found",
+				Error:   "journal not found",
+			})
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Message: "Failed to fetch journals",
+			Message: "Failed to fetch journal",
 			Error:   err.Error(),
+		})
+		return
+	}
+
+	// Verify journal ownership
+	if existingJournal.UserID != userIDInt {
+		ctx.JSON(http.StatusForbidden, dto.ErrorResponse{
+			Message: "Forbidden",
+			Error:   "Cannot update journal that doesn't belong to you",
 		})
 		return
 	}
 
 	var journal model.Journal
 	if err := ctx.ShouldBindJSON(&journal); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Message: "Invalid request body",
+			Error:   err.Error(),
+		})
 		return
 	}
 
-	// Set user_id from existing journal
+	// Set user_id from existing journal and journal ID
 	journal.UserID = existingJournal.UserID
 	journal.ID = journalID
 
 	if err := c.usecase.Update(ctx, &journal); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Failed to update journal",
+			Error:   err.Error(),
+		})
 		return
 	}
 
@@ -201,8 +251,8 @@ func (c *JournalController) DeleteJournal(ctx *gin.Context) {
 	}
 
 	// Get user ID from context (assuming it's set by auth middleware)
-	userID, err := strconv.Atoi(ctx.Param("userID"))
-	if err != nil {
+	userID, userIDExists := ctx.Get("userID")
+	if !userIDExists {
 		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Message: "Invalid user ID format",
 			Error:   "invalid_user_id",

@@ -46,8 +46,25 @@ func (tc *TopicControllerImpl) Route() {
 }
 
 func (tc *TopicControllerImpl) CreateTopic(c *gin.Context) {
-	// Parse request body
-	var input dto.InputTopic
+	// get user ID from jwt body
+	val, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, dto.Response{
+			Message: "Authentication required",
+		})
+		return
+	}
+	userID, ok := val.(int)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "Invalid user identity in context",
+		})
+		return
+	}
+
+	var input struct {
+		Preference string `json:"preference" binding:"required"`
+	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
@@ -58,7 +75,7 @@ func (tc *TopicControllerImpl) CreateTopic(c *gin.Context) {
 	}
 
 	// Create topic with provided user ID
-	topicID, err := tc.topicUsecase.CreateTopic(c.Request.Context(), input.UserID, input.Preference)
+	topicID, err := tc.topicUsecase.CreateTopic(c.Request.Context(), userID, input.Preference)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 			Message: "Internal Server Error",
@@ -71,7 +88,7 @@ func (tc *TopicControllerImpl) CreateTopic(c *gin.Context) {
 		Message: "Topic created successfully",
 		Data: gin.H{
 			"id":         topicID,
-			"user_id":    input.UserID,
+			"user_id":    userID,
 			"preference": input.Preference,
 		},
 	})
@@ -143,15 +160,44 @@ func (tc *TopicControllerImpl) UpdateTopic(c *gin.Context) {
 		return
 	}
 
+	// Get user ID from JWT token
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, dto.Response{
+			Message: "Authentication required",
+		})
+		return
+	}
+	userIDInt, ok := userID.(int)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Message: "Invalid user identity",
+			Error:   "Failed to parse user ID from token",
+		})
+		return
+	}
+
+	// Check if the topic belongs to the user
+	topic, err := tc.topicUsecase.GetTopicByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{
+			Message: "Not Found",
+			Error:   "Topic not found",
+		})
+		return
+	}
+
+	// Verify topic ownership
+	if topic.UserID != userIDInt {
+		c.JSON(http.StatusForbidden, dto.ErrorResponse{
+			Message: "Forbidden",
+			Error:   "Cannot update topic that doesn't belong to you",
+		})
+		return
+	}
+
 	err = tc.topicUsecase.UpdateTopic(c.Request.Context(), id, input.Preference)
 	if err != nil {
-		if err.Error() == fmt.Sprintf("topic with ID %d not found", id) {
-			c.JSON(http.StatusNotFound, dto.ErrorResponse{
-				Message: "Not Found",
-				Error:   err.Error(),
-			})
-			return
-		}
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 			Message: "Internal Server Error",
 			Error:   err.Error(),
@@ -165,8 +211,7 @@ func (tc *TopicControllerImpl) UpdateTopic(c *gin.Context) {
 }
 
 func (tc *TopicControllerImpl) DeleteTopic(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Message: "Bad Request",
@@ -175,17 +220,20 @@ func (tc *TopicControllerImpl) DeleteTopic(c *gin.Context) {
 		return
 	}
 
-	err = tc.topicUsecase.DeleteTopic(c.Request.Context(), id)
-	if err != nil {
+	if _, exists := c.Get("userID"); !exists {
+		c.JSON(http.StatusUnauthorized, dto.Response{
+			Message: "Authentication required",
+		})
+		return
+	}
+
+	if err := tc.topicUsecase.DeleteTopic(c.Request.Context(), id); err != nil {
+		status := http.StatusInternalServerError
 		if err.Error() == fmt.Sprintf("topic with ID %d not found", id) {
-			c.JSON(http.StatusNotFound, dto.ErrorResponse{
-				Message: "Not Found",
-				Error:   err.Error(),
-			})
-			return
+			status = http.StatusNotFound
 		}
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Message: "Internal Server Error",
+		c.JSON(status, dto.ErrorResponse{
+			Message: http.StatusText(status),
 			Error:   err.Error(),
 		})
 		return
