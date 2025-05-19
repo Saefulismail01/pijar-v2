@@ -34,10 +34,10 @@ func (c *JournalController) Route() {
 	userRoutes := journalGroup.Use(c.aM.RequireToken("USER", "ADMIN"))
 	{
 		userRoutes.POST("/", c.CreateJournal)
-		userRoutes.GET("/user/:userID", c.GetJournalsByUserID)
+		userRoutes.GET("/user", c.GetJournalsByUserID)
 		userRoutes.PUT("/:journalID", c.UpdateJournal)
 		userRoutes.DELETE("/:userID/:journalID", c.DeleteJournal)
-		userRoutes.GET("/user/:userID/export", c.ExportJournalsToPDF)
+		userRoutes.GET("/export", c.ExportJournalsToPDF)
 	}
 
 	adminRoutes := journalGroup.Use(c.aM.RequireToken("ADMIN"))
@@ -101,11 +101,18 @@ func (c *JournalController) GetAllJournals(ctx *gin.Context) {
 }
 
 func (c *JournalController) GetJournalsByUserID(ctx *gin.Context) {
-	userID, err := strconv.Atoi(ctx.Param("userID"))
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Invalid user ID",
-			Error:   "invalid user ID",
+	// get user ID from jwt body
+	val, exists := ctx.Get("userID")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, dto.Response{
+			Message: "Authentication required",
+		})
+		return
+	}
+	userID, ok := val.(int)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "Invalid user identity in context",
 		})
 		return
 	}
@@ -243,11 +250,18 @@ func (c *JournalController) DeleteJournal(ctx *gin.Context) {
 }
 
 func (c *JournalController) ExportJournalsToPDF(ctx *gin.Context) {
-	userID, err := strconv.Atoi(ctx.Param("userID"))
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Invalid user ID",
-			Error:   "invalid user ID",
+	// get user ID from jwt body
+	val, exists := ctx.Get("userID")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, dto.Response{
+			Message: "Authentication required",
+		})
+		return
+	}
+	userID, ok := val.(int)
+	if !ok {
+		ctx.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "Invalid user identity in context",
 		})
 		return
 	}

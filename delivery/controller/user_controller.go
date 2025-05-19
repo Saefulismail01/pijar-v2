@@ -34,8 +34,8 @@ func (uc *UserController) Route() {
 	adminProtected := uc.rg.Group("/users")
 	adminProtected.Use(uc.authMiddleware.RequireToken("ADMIN"))
 	adminProtected.GET("/", uc.GetAllUsersController)
-	adminProtected.GET("/:id", uc.GetUserByIDController)
-	adminProtected.PUT("/:id", uc.UpdateUserController)
+	adminProtected.GET("/detail", uc.GetUserByIDController)
+	adminProtected.PUT("/", uc.UpdateUserController)
 	adminProtected.DELETE("/:id", uc.DeleteUserController)
 	adminProtected.GET("/email/:email", uc.GetUserByEmail)
 
@@ -98,17 +98,23 @@ func (uc *UserController) GetAllUsersController(c *gin.Context) {
 }
 
 func (uc *UserController) GetUserByIDController(c *gin.Context) {
-	idParam := c.Param("id")
-	id, err := strconv.Atoi(idParam)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Bad Request",
-			Error:   "Invalid user ID",
+	// get user ID from jwt body
+	val, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, dto.Response{
+			Message: "Authentication required",
+		})
+		return
+	}
+	userID, ok := val.(int)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "Invalid user identity in context",
 		})
 		return
 	}
 
-	user, err := uc.UserUsecase.GetUserByIDUsecase(id)
+	user, err := uc.UserUsecase.GetUserByIDUsecase(userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, dto.ErrorResponse{
 			Message: "Not Found",
@@ -124,12 +130,18 @@ func (uc *UserController) GetUserByIDController(c *gin.Context) {
 }
 
 func (uc *UserController) UpdateUserController(c *gin.Context) {
-	idParam := c.Param("id")
-	id, err := strconv.Atoi(idParam)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Message: "Bad Request",
-			Error:   "Invalid user ID",
+	// get user ID from jwt body
+	val, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, dto.Response{
+			Message: "Authentication required",
+		})
+		return
+	}
+	userID, ok := val.(int)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "Invalid user identity in context",
 		})
 		return
 	}
@@ -143,7 +155,7 @@ func (uc *UserController) UpdateUserController(c *gin.Context) {
 		return
 	}
 
-	updatedUser, err := uc.UserUsecase.UpdateUserUsecase(id, userInput)
+	updatedUser, err := uc.UserUsecase.UpdateUserUsecase(userID, userInput)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 			Message: "Internal Server Error",

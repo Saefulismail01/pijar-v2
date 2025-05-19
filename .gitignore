@@ -9,7 +9,7 @@ docker-compose.yml
 schema.sql
 
 # IDE specific files
-.vscode/
+# .vscode/
 
 # OS generated files
 .DS_Store

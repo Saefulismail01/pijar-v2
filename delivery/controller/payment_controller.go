@@ -58,6 +58,23 @@ func (p *paymentController) Route() {
 
 // CreatePayment creates a new payment
 func (p *paymentController) CreatePayment(c *gin.Context) {
+
+	// get user ID from jwt body
+	val, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, dto.Response{
+			Message: "Authentication required",
+		})
+		return
+	}
+	userID, ok := val.(int)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, dto.Response{
+			Message: "Invalid user identity in context",
+		})
+		return
+	}
+
 	var req model.PaymentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
@@ -85,6 +102,7 @@ func (p *paymentController) CreatePayment(c *gin.Context) {
 		// Continue with limited information
 	}
 
+	transaction.UserID = userID
 	// Get user information
 	user, err := p.paymentUsecase.GetUserByID(transaction.UserID)
 	if err != nil {
@@ -142,7 +160,7 @@ func (p *paymentController) GetPaymentStatus(c *gin.Context) {
 
 	// Check if user is only accessing their own transaction
 	// Get user ID from token
-	userID, userIDExists := c.Get("user_id")
+	userID, userIDExists := c.Get("userID")
 	role, roleExists := c.Get("role")
 	if !userIDExists || !roleExists {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
